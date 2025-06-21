@@ -495,6 +495,73 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, onClose }) => {
     );
 };
 
+// [NEW] A dedicated component for the print-only view of an asset's details.
+const PrintAssetDetail = ({ asset, details, method }) => {
+    return (
+        <div className="print-section mb-8 page-break-before">
+            <h3 className="text-xl font-bold text-slate-800 mb-4 p-4 border-b border-slate-200">
+                {asset.name || 'Unnamed Asset'}
+            </h3>
+            <div className="p-4">
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                    <div><strong>Asset Type:</strong> {asset.assetType.replace(/_/g, ' ')}</div>
+                    <div><strong>Method:</strong> {method}</div>
+                    <div><strong>Purchase Date:</strong> {new Date(asset.purchaseDate).toLocaleDateString('en-GB')}</div>
+                    <div><strong>Opening Gross Block:</strong> {formatCurrency(details.openingGrossBlock)}</div>
+                    <div><strong>Opening Accum. Dep:</strong> {formatCurrency(details.openingAccumulatedDepreciation)}</div>
+                    {method === 'SLM' && <div><strong>Residual Value:</strong> {formatCurrency(asset.residualValue)}</div>}
+                </div>
+
+                {asset.additions.length > 0 && (
+                    <div className="mb-4">
+                        <h4 className="font-bold mb-2">Additions:</h4>
+                        {asset.additions.map((add, i) => (
+                             <div key={i}>- Purchased on {new Date(add.date).toLocaleDateString('en-GB')} for {formatCurrency(add.cost)}</div>
+                        ))}
+                    </div>
+                )}
+                
+                {asset.disposalDate && (
+                    <div className="mb-4">
+                        <h4 className="font-bold mb-2">Disposal:</h4>
+                        <div>- Disposed on {new Date(asset.disposalDate).toLocaleDateString('en-GB')} for {formatCurrency(asset.saleValue)}</div>
+                    </div>
+                )}
+
+                <div className="border-t border-slate-200 pt-4">
+                    <h4 className="font-bold mb-2">Calculation Workings:</h4>
+                    <div className="space-y-2">
+                         {details.workings.map((item, index) => (
+                            <div key={index} className="flex justify-between items-start text-sm">
+                                <div className='pr-4'>
+                                    <p>{item.description}: <span className="text-xs text-slate-500">{item.calculation}</span></p>
+                                </div>
+                                <p className="font-medium whitespace-nowrap">{formatCurrency(item.amount)}</p>
+                            </div>
+                        ))}
+                    </div>
+                    <hr className="my-2" />
+                    <div className="flex justify-between font-bold">
+                        <span>Depreciation For The Year</span>
+                        <span>{formatCurrency(details.depreciationForYear)}</span>
+                    </div>
+                    {asset.disposalDate && (
+                        <div className={`flex justify-between font-bold ${details.profitOrLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            <span>{details.profitOrLoss >= 0 ? 'Profit on Sale' : 'Loss on Sale'}</span>
+                            <span>{formatCurrency(Math.abs(details.profitOrLoss))}</span>
+                        </div>
+                    )}
+                     <div className="flex justify-between font-bold text-green-700 mt-2">
+                        <span>Closing Net Block</span>
+                        <span>{formatCurrency(details.closingWDV)}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+
 const SkeletonCard = () => (
     <div className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg border border-white/30 dark:border-slate-700/50 rounded-2xl shadow-lg p-4 mb-4 animate-pulse">
         <div className="flex justify-between items-center">
@@ -588,9 +655,14 @@ const PrintStyles = () => (
                 margin-bottom: 1.5rem !important;
                 border-radius: 0 !important;
             }
-            .asset-details-container {
-                max-height: none !important;
+            main {
+                display: none !important;
+            }
+            .print-only {
                 display: block !important;
+            }
+            .page-break-before {
+                page-break-before: always;
             }
              h1, h2, h3 {
                 color: #000 !important;
@@ -764,7 +836,7 @@ const SummaryReport = ({ calculationResults, onFilterChange, showToast, filterTy
                            </div>
                       </div>
                        {hasChartData && (
-                           <div className="min-h-[300px] chart-container flex flex-col items-center">
+                           <div className="min-h-[300px] chart-container flex flex-col items-center no-print">
                               <h3 className="font-bold text-lg text-slate-700 dark:text-slate-200 mb-4 text-center">Depreciation by Asset Type</h3>
                                <ResponsiveContainer width="100%" height={300}>
                                   <PieChart>
@@ -1001,34 +1073,50 @@ export default function App() {
                        )}
                     </div>
 
-                    <main className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {isLoading ? (
-                            [...Array(3)].map((_, i) => <SkeletonCard key={i} />)
-                        ) : (
-                            filteredAssets.map((result, index) => 
-                                <AssetCard 
-                                    key={result.id} 
-                                    asset={result.asset}
-                                    details={result.details}
-                                    onSelect={handleSelectAsset}
-                                    onEdit={() => setSelectedAssetId(result.id)}
-                                    animationDelay={index * 50}
-                                />
-                            )
-                        )}
-                        { !isLoading && filteredAssets.length === 0 && assets.length > 0 && (
-                            <div className="text-center p-8 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg rounded-2xl shadow-lg md:col-span-2 lg:col-span-3">
-                                <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200">No assets match your filter.</h3>
-                                <p className="text-slate-500 dark:text-slate-400 mt-2">Click the filter tag above to clear it.</p>
-                            </div>
-                        )}
-                         { !isLoading && assets.length === 0 && (
-                            <div className="text-center p-8 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg rounded-2xl shadow-lg md:col-span-2 lg:col-span-3">
-                                <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200">No assets to display.</h3>
-                                <p className="text-slate-500 dark:text-slate-400 mt-2">Click the button below to add your first asset.</p>
-                            </div>
-                        )}
+                    <main>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {isLoading ? (
+                                [...Array(3)].map((_, i) => <SkeletonCard key={i} />)
+                            ) : (
+                                filteredAssets.map((result, index) => 
+                                    <AssetCard 
+                                        key={result.id} 
+                                        asset={result.asset}
+                                        details={result.details}
+                                        onSelect={handleSelectAsset}
+                                        onEdit={() => setSelectedAssetId(result.id)}
+                                        animationDelay={index * 50}
+                                    />
+                                )
+                            )}
+                            { !isLoading && filteredAssets.length === 0 && assets.length > 0 && (
+                                <div className="text-center p-8 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg rounded-2xl shadow-lg md:col-span-2 lg:col-span-3">
+                                    <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200">No assets match your filter.</h3>
+                                    <p className="text-slate-500 dark:text-slate-400 mt-2">Click the filter tag above to clear it.</p>
+                                </div>
+                            )}
+                             { !isLoading && assets.length === 0 && (
+                                <div className="text-center p-8 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg rounded-2xl shadow-lg md:col-span-2 lg:col-span-3">
+                                    <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200">No assets to display.</h3>
+                                    <p className="text-slate-500 dark:text-slate-400 mt-2">Click the button below to add your first asset.</p>
+                                </div>
+                            )}
+                        </div>
                     </main>
+
+                    {/* Print-only section */}
+                    <div className="hidden print-only">
+                        <h2 className="text-2xl font-bold text-slate-800 mb-4 pt-8">Asset Details</h2>
+                        {calculationResults.map(result => (
+                            <PrintAssetDetail 
+                                key={`print-${result.id}`}
+                                asset={result.asset}
+                                details={result.details}
+                                method={method}
+                            />
+                        ))}
+                    </div>
+
 
                     <button onClick={addAsset} className="fixed bottom-8 right-8 h-16 w-16 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center justify-center no-print" title="Add New Asset">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
