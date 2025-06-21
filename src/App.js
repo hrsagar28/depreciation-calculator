@@ -257,17 +257,17 @@ const AssetCard = ({ asset, details, onSelect, onEdit, animationDelay }) => {
                 onClick={onEdit}
                 className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg border border-white/30 dark:border-slate-700/50 rounded-2xl shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 cursor-pointer"
             >
-                <div className="p-4">
+                <div className="p-5 sm:p-4">
                     <div className="flex justify-between items-start gap-4">
                         <div className="flex items-center flex-shrink-0 mr-4 no-print">
                             <input type="checkbox" checked={asset.isSelected} onChange={(e) => onSelect(asset.id, e.target.checked)} onClick={(e) => e.stopPropagation()} className="h-6 w-6 rounded border-slate-400 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 cursor-pointer"/>
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-lg font-bold text-slate-800 dark:text-slate-100 truncate">{asset.name || 'Unnamed Asset'}</p>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">{asset.assetType ? asset.assetType.replace(/_/g, ' ') : 'No type selected'}</p>
+                            <p className="text-lg md:text-lg font-bold text-slate-800 dark:text-slate-100 truncate">{asset.name || 'Unnamed Asset'}</p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 capitalize">{asset.assetType ? asset.assetType.replace(/_/g, ' ') : 'No type selected'}</p>
                         </div>
                         <div className="text-right flex-shrink-0 ml-4">
-                            <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400">{formatCurrency(details.depreciationForYear)}</p>
+                            <p className="text-xl md:text-lg font-bold text-indigo-600 dark:text-indigo-400">{formatCurrency(details.depreciationForYear)}</p>
                             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Depreciation</p>
                         </div>
                     </div>
@@ -337,7 +337,7 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, onClose }) => {
     return (
         <div className="fixed inset-0 z-40 flex justify-end no-print">
             <div className={`absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'}`} onClick={handleClose}></div>
-            <div className={`relative bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl w-full max-w-2xl h-full shadow-2xl flex flex-col transition-transform duration-300 ease-in-out ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}>
+            <div className={`relative bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl w-full md:max-w-2xl h-full shadow-2xl flex flex-col transition-transform duration-300 ease-in-out ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}>
                 <div className="flex-shrink-0 p-6 border-b border-slate-200 dark:border-slate-700">
                     <div className="flex justify-between items-center">
                         <input ref={nameInputRef} type="text" value={asset.name} placeholder="Enter Asset Name" onChange={(e) => updateAsset(asset.id, {...asset, name: e.target.value})} className="text-2xl font-bold text-slate-800 dark:text-slate-100 bg-transparent focus:outline-none focus:ring-0 border-none p-0 w-full placeholder-slate-400 dark:placeholder-slate-500"/>
@@ -364,7 +364,7 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, onClose }) => {
                             {!asset.assetType && <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">Select an asset type to calculate depreciation.</p>}
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-6">
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                     <Tooltip text="The total cost of the asset at the beginning of the financial year.">
@@ -431,7 +431,7 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, onClose }) => {
 
                         <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
                             <h4 className="text-md font-semibold text-slate-800 dark:text-slate-100 mb-3">Disposal / Sale</h4>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                  <div>
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                          <Tooltip text="The original date the asset was purchased. Required for accurate depreciation on opening balances and for disposals.">
@@ -495,7 +495,6 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, onClose }) => {
     );
 };
 
-// [NEW] A dedicated component for the print-only view of an asset's details.
 const PrintAssetDetail = ({ asset, details, method }) => {
     return (
         <div className="print-section mb-8 page-break-before">
@@ -1032,15 +1031,15 @@ export default function App() {
                         Are you sure you want to delete the selected {selectedAssetCount} asset(s)? This action cannot be undone.
                     </ConfirmationModal>
 
-                    <header className="mb-8 relative no-print">
-                        <div className="text-center">
-                            <h1 className="text-4xl md:text-5xl font-bold text-slate-800 dark:text-slate-100">Depreciation Calculator</h1>
-                            <p className="text-lg text-slate-600 dark:text-slate-400 mt-2">For the Financial Year {FY_LABEL}</p>
-                        </div>
-                        <div className="absolute top-0 right-0">
+                    <header className="mb-8 relative flex flex-col sm:justify-center no-print">
+                        <div className="w-full flex justify-end mb-4 sm:absolute sm:top-0 sm:right-0 sm:mb-0">
                            <button onClick={toggleTheme} className="px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold rounded-lg shadow-sm hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors text-sm">
                                 {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
                             </button>
+                        </div>
+                        <div className="text-center">
+                            <h1 className="text-4xl md:text-5xl font-bold text-slate-800 dark:text-slate-100">Depreciation Calculator</h1>
+                            <p className="text-lg text-slate-600 dark:text-slate-400 mt-2">For the Financial Year {FY_LABEL}</p>
                         </div>
                     </header>
                     
@@ -1056,7 +1055,7 @@ export default function App() {
                         <Tooltip text="Each card represents a single asset for financial reporting (per Ind AS 16). For Income Tax block calculations, aggregate results manually.">
                             <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center">
                                 Assets
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-2 text-slate-400 no-print" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-2 text-slate-400 no-print" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                             </h2>
                         </Tooltip>
                         {filterType && !isLoading && (
@@ -1118,7 +1117,7 @@ export default function App() {
                     </div>
 
 
-                    <button onClick={addAsset} className="fixed bottom-8 right-8 h-16 w-16 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center justify-center no-print" title="Add New Asset">
+                    <button onClick={addAsset} className="fixed bottom-6 right-6 md:bottom-8 md:right-8 h-16 w-16 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center justify-center no-print" title="Add New Asset">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                     </button>
                     
