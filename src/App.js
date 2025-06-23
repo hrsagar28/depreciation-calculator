@@ -575,337 +575,182 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, children }) => {
     );
 };
 
-// --- START: New and Refactored Print Components ---
-
-/**
- * Injects CSS rules specifically for printing the document.
- */
+// --- START: Print Components ---
 const PrintStyles = () => (
     <style>{`
-        .print-only {
-            display: none;
-        }
+        .print-only { display: none; }
         @media print {
-            @page {
-                size: landscape;
-                margin: 0.75in;
-            }
-
-            body, html {
-                background-color: #fff !important;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-                height: auto;
-                font-size: 10pt;
-            }
-
-            .no-print {
-                display: none !important;
-            }
-            
-            .print-only {
-                display: block !important;
-            }
-            
-            .print-header h1 {
-                font-size: 18pt;
-                font-weight: bold;
-                text-align: center;
-                margin-bottom: 4px;
-            }
-            .print-header p {
-                font-size: 12pt;
-                text-align: center;
-                margin-bottom: 2rem;
-            }
-
-            .print-section-title {
-                font-size: 14pt;
-                font-weight: bold;
-                margin-top: 2rem;
-                margin-bottom: 1rem;
-                border-bottom: 2px solid #ccc;
-                padding-bottom: 0.5rem;
-                page-break-after: avoid;
-                page-break-before: always;
-            }
-            
-            .print-section-title.first {
-                page-break-before: auto;
-            }
-
-            .print-summary-table {
-                width: 100%;
-                border-collapse: collapse;
-                margin-bottom: 1rem;
-            }
-            .print-summary-table th,
-            .print-summary-table td {
-                border: 1px solid #ccc;
-                padding: 6px 8px;
-                text-align: left;
-                font-size: 8pt;
-            }
-            .print-summary-table th {
-                background-color: #f2f2f2 !important;
-                font-weight: bold;
-            }
-            .print-summary-table td[align="right"],
-            .print-summary-table th[align="right"] {
-                text-align: right;
-            }
-            .print-summary-table tfoot {
-                font-weight: bold;
-                background-color: #f2f2f2 !important;
-            }
-
-            .print-asset-detail {
-                page-break-inside: avoid;
-                margin-bottom: 1.5rem;
-                border: 1px solid #ccc;
-                padding: 1rem;
-                border-radius: 8px;
-            }
-            
-            .print-asset-detail h4 {
-                 font-size: 12pt;
-                 font-weight: bold;
-                 margin-bottom: 0.75rem;
-                 border-bottom: 1px solid #eee;
-                 padding-bottom: 0.5rem;
-            }
-
-            .print-asset-header-grid {
-                display: grid;
-                grid-template-columns: repeat(2, 1fr);
-                gap: 0.5rem 1.5rem;
-                margin-bottom: 1rem;
-            }
-             .print-asset-header-grid div {
-                font-size: 9pt;
-            }
-
-            .print-workings-table {
-                width: 100%;
-                margin-top: 1rem;
-                border-collapse: collapse;
-            }
-            .print-workings-table td {
-                padding: 4px 0;
-                vertical-align: top;
-                border-bottom: 1px dotted #ccc;
-            }
-             .print-workings-table tr:last-child td {
-                border-bottom: none;
-            }
-            .print-workings-table .calc-desc {
-                font-size: 9pt;
-            }
-            .print-workings-table .calc-string {
-                font-size: 8pt;
-                color: #555 !important;
-                padding-left: 1rem;
-            }
-            .print-workings-table .calc-amount {
-                text-align: right;
-                font-weight: bold;
-                white-space: nowrap;
-                padding-left: 1.5rem;
-            }
-
-            .print-final-summary {
-                margin-top: 1rem;
-                border-top: 2px solid #ccc;
-                padding-top: 0.75rem;
-            }
-            .print-final-summary .summary-row {
-                display: flex;
-                justify-content: space-between;
-                font-weight: bold;
-                margin-bottom: 0.25rem;
-                font-size: 10pt;
-            }
+            @page { size: landscape; margin: 0.75in; }
+            body, html { background-color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; height: auto; font-size: 10pt; }
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            .print-header h1 { font-size: 18pt; font-weight: bold; text-align: center; margin-bottom: 4px; }
+            .print-header p { font-size: 12pt; text-align: center; margin-bottom: 2rem; }
+            .print-section-title { font-size: 14pt; font-weight: bold; margin-top: 2rem; margin-bottom: 1rem; border-bottom: 2px solid #ccc; padding-bottom: 0.5rem; page-break-after: avoid; page-break-before: always; }
+            .print-section-title.first { page-break-before: auto; }
+            .print-summary-table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+            .print-summary-table th, .print-summary-table td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; font-size: 8pt; }
+            .print-summary-table th { background-color: #f2f2f2 !important; font-weight: bold; }
+            .print-summary-table td[align="right"], .print-summary-table th[align="right"] { text-align: right; }
+            .print-summary-table tfoot { font-weight: bold; background-color: #f2f2f2 !important; }
+            .print-asset-detail { page-break-inside: avoid; margin-bottom: 1.5rem; border: 1px solid #ccc; padding: 1rem; border-radius: 8px; }
+            .print-asset-detail h4 { font-size: 12pt; font-weight: bold; margin-bottom: 0.75rem; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; }
+            .print-asset-header-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem 1.5rem; margin-bottom: 1rem; }
+            .print-asset-header-grid div { font-size: 9pt; }
+            .print-workings-table { width: 100%; margin-top: 1rem; border-collapse: collapse; }
+            .print-workings-table td { padding: 4px 0; vertical-align: top; border-bottom: 1px dotted #ccc; }
+            .print-workings-table tr:last-child td { border-bottom: none; }
+            .print-workings-table .calc-desc { font-size: 9pt; }
+            .print-workings-table .calc-string { font-size: 8pt; color: #555 !important; padding-left: 1rem; }
+            .print-workings-table .calc-amount { text-align: right; font-weight: bold; white-space: nowrap; padding-left: 1.5rem; }
+            .print-final-summary { margin-top: 1rem; border-top: 2px solid #ccc; padding-top: 0.75rem; }
+            .print-final-summary .summary-row { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 0.25rem; font-size: 10pt; }
             .print-final-summary .profit { color: #166534 !important; }
             .print-final-summary .loss { color: #b91c1c !important; }
-            .print-final-summary .net-block { 
-                 background-color: #f0fdf4 !important;
-                 padding: 0.5rem;
-                 border-radius: 4px;
-                 margin-top: 0.5rem;
-            }
-
-            * {
-                box-shadow: none !important;
-                text-shadow: none !important;
-                color-adjust: exact !important;
-                -webkit-print-color-adjust: exact !important;
-            }
+            .print-final-summary .net-block { background-color: #f0fdf4 !important; padding: 0.5rem; border-radius: 4px; margin-top: 0.5rem; }
+            * { box-shadow: none !important; text-shadow: none !important; color-adjust: exact !important; -webkit-print-color-adjust: exact !important; }
         }
     `}</style>
 );
-
-/**
- * Renders the summary table for the print view.
- */
-const PrintSummaryTable = ({ summaryData }) => {
-    return (
-        <>
-            <h2 className="print-section-title first">Asset Type Summary Schedule</h2>
-            <table className="print-summary-table">
-                <thead>
-                    <tr>
-                        <th>Asset Type</th>
-                        <th align="right">Op. Gross Block</th>
-                        <th align="right">Additions</th>
-                        <th align="right">Disposals</th>
-                        <th align="right">Cl. Gross Block</th>
-                        <th align="right">Op. Accum. Dep.</th>
-                        <th align="right">Dep. for Year</th>
-                        <th align="right">Cl. Accum. Dep.</th>
-                        <th align="right">Op. Net Block</th>
-                        <th align="right">Cl. Net Block</th>
+const PrintSummaryTable = ({ summaryData }) => (
+    <>
+        <h2 className="print-section-title first">Asset Type Summary Schedule</h2>
+        <table className="print-summary-table">
+            <thead>
+                <tr>
+                    <th>Asset Type</th>
+                    <th align="right">Op. Gross Block</th>
+                    <th align="right">Additions</th>
+                    <th align="right">Disposals</th>
+                    <th align="right">Cl. Gross Block</th>
+                    <th align="right">Op. Accum. Dep.</th>
+                    <th align="right">Dep. for Year</th>
+                    <th align="right">Cl. Accum. Dep.</th>
+                    <th align="right">Op. Net Block</th>
+                    <th align="right">Cl. Net Block</th>
+                </tr>
+            </thead>
+            <tbody>
+                {Object.values(summaryData.byType).map(typeData => (
+                    <tr key={typeData.internalName}>
+                        <td>{typeData.name}</td>
+                        <td align="right">{formatCurrency(typeData.openingGrossBlock)}</td>
+                        <td align="right">{formatCurrency(typeData.additions)}</td>
+                        <td align="right">{formatCurrency(typeData.disposalsCost)}</td>
+                        <td align="right">{formatCurrency(typeData.closingGrossBlock)}</td>
+                        <td align="right">{formatCurrency(typeData.openingAccumulatedDepreciation)}</td>
+                        <td align="right">{formatCurrency(typeData.depreciationForYear)}</td>
+                        <td align="right">{formatCurrency(typeData.closingAccumulatedDepreciation)}</td>
+                        <td align="right">{formatCurrency(typeData.openingNetBlock)}</td>
+                        <td align="right">{formatCurrency(typeData.closingNetBlock)}</td>
                     </tr>
-                </thead>
+                ))}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td>TOTAL</td>
+                    <td align="right">{formatCurrency(summaryData.totals.openingGrossBlock)}</td>
+                    <td align="right">{formatCurrency(summaryData.totals.additions)}</td>
+                    <td align="right">{formatCurrency(summaryData.totals.disposalsCost)}</td>
+                    <td align="right">{formatCurrency(summaryData.totals.closingGrossBlock)}</td>
+                    <td align="right">{formatCurrency(summaryData.totals.openingAccumulatedDepreciation)}</td>
+                    <td align="right">{formatCurrency(summaryData.totals.depreciationForYear)}</td>
+                    <td align="right">{formatCurrency(summaryData.totals.closingAccumulatedDepreciation)}</td>
+                    <td align="right">{formatCurrency(summaryData.totals.openingNetBlock)}</td>
+                    <td align="right">{formatCurrency(summaryData.totals.closingNetBlock)}</td>
+                </tr>
+            </tfoot>
+        </table>
+        <p style={{ fontSize: '8pt', color: '#555', marginTop: '1rem' }}>
+            <strong>Note:</strong> The calculations above are based on a single-asset accounting model as per Ind AS 16. For Income Tax purposes, where depreciation is calculated on a 'block of assets', please aggregate the results from this schedule manually.
+        </p>
+    </>
+);
+const PrintAssetDetail = ({ asset, details, method }) => (
+    <div className="print-asset-detail">
+        <h4>{asset.name || 'Unnamed Asset'}</h4>
+        <div className="print-asset-header-grid">
+            <div><strong>Asset Type:</strong> {asset.assetType ? asset.assetType.replace(/_/g, ' ') : 'N/A'}</div>
+            <div><strong>Method:</strong> {method}</div>
+            <div><strong>Orig. Purchase Date:</strong> {asset.purchaseDate ? new Date(asset.purchaseDate).toLocaleDateString('en-GB') : 'N/A'}</div>
+            {asset.disposalDate && <div><strong>Disposal Date:</strong> {new Date(asset.disposalDate).toLocaleDateString('en-GB')}</div>}
+            <div><strong>Opening Gross Block:</strong> {formatCurrency(details.openingGrossBlock)}</div>
+            <div><strong>Opening Accum. Dep:</strong> {formatCurrency(details.openingAccumulatedDepreciation)}</div>
+            {method === 'SLM' && <div><strong>Residual Value:</strong> {formatCurrency(asset.residualValue)}</div>}
+            {asset.disposalDate && <div><strong>Sale Value:</strong> {formatCurrency(asset.saleValue)}</div>}
+        </div>
+        {asset.additions.length > 0 && (
+            <div style={{marginBottom: '1rem'}}>
+                <strong style={{fontSize: '9pt'}}>Additions:</strong>
+                <ul style={{listStyle: 'disc', paddingLeft: '20px', fontSize: '9pt', margin: '0.25rem 0'}}>
+                    {asset.additions.map((add, i) => (
+                         <li key={i}>Purchased on {new Date(add.date).toLocaleDateString('en-GB')} for {formatCurrency(add.cost)}</li>
+                    ))}
+                </ul>
+            </div>
+        )}
+        <div>
+            <strong style={{fontSize: '10pt'}}>Calculation Workings:</strong>
+            <table className="print-workings-table">
                 <tbody>
-                    {Object.values(summaryData.byType).map(typeData => (
-                        <tr key={typeData.internalName}>
-                            <td>{typeData.name}</td>
-                            <td align="right">{formatCurrency(typeData.openingGrossBlock)}</td>
-                            <td align="right">{formatCurrency(typeData.additions)}</td>
-                            <td align="right">{formatCurrency(typeData.disposalsCost)}</td>
-                            <td align="right">{formatCurrency(typeData.closingGrossBlock)}</td>
-                            <td align="right">{formatCurrency(typeData.openingAccumulatedDepreciation)}</td>
-                            <td align="right">{formatCurrency(typeData.depreciationForYear)}</td>
-                            <td align="right">{formatCurrency(typeData.closingAccumulatedDepreciation)}</td>
-                            <td align="right">{formatCurrency(typeData.openingNetBlock)}</td>
-                            <td align="right">{formatCurrency(typeData.closingNetBlock)}</td>
-                        </tr>
-                    ))}
-                </tbody>
-                <tfoot>
-                    <tr>
-                        <td>TOTAL</td>
-                        <td align="right">{formatCurrency(summaryData.totals.openingGrossBlock)}</td>
-                        <td align="right">{formatCurrency(summaryData.totals.additions)}</td>
-                        <td align="right">{formatCurrency(summaryData.totals.disposalsCost)}</td>
-                        <td align="right">{formatCurrency(summaryData.totals.closingGrossBlock)}</td>
-                        <td align="right">{formatCurrency(summaryData.totals.openingAccumulatedDepreciation)}</td>
-                        <td align="right">{formatCurrency(summaryData.totals.depreciationForYear)}</td>
-                        <td align="right">{formatCurrency(summaryData.totals.closingAccumulatedDepreciation)}</td>
-                        <td align="right">{formatCurrency(summaryData.totals.openingNetBlock)}</td>
-                        <td align="right">{formatCurrency(summaryData.totals.closingNetBlock)}</td>
+                    {details.workings.map((item, index) => (
+                    <tr key={index}>
+                        <td>
+                            <div className="calc-desc">{item.description}</div>
+                            <div className="calc-string">{item.calculation}</div>
+                        </td>
+                        <td className="calc-amount">{formatCurrency(item.amount)}</td>
                     </tr>
-                </tfoot>
-            </table>
-            <p style={{ fontSize: '8pt', color: '#555', marginTop: '1rem' }}>
-                <strong>Note:</strong> The calculations above are based on a single-asset accounting model as per Ind AS 16. For Income Tax purposes, where depreciation is calculated on a 'block of assets', please aggregate the results from this schedule manually.
-            </p>
-        </>
-    );
-};
-
-/**
- * Renders a single asset's details in a print-friendly format.
- */
-const PrintAssetDetail = ({ asset, details, method }) => {
-    return (
-        <div className="print-asset-detail">
-            <h4>{asset.name || 'Unnamed Asset'}</h4>
-            
-            <div className="print-asset-header-grid">
-                <div><strong>Asset Type:</strong> {asset.assetType ? asset.assetType.replace(/_/g, ' ') : 'N/A'}</div>
-                <div><strong>Method:</strong> {method}</div>
-                <div><strong>Orig. Purchase Date:</strong> {asset.purchaseDate ? new Date(asset.purchaseDate).toLocaleDateString('en-GB') : 'N/A'}</div>
-                {asset.disposalDate && <div><strong>Disposal Date:</strong> {new Date(asset.disposalDate).toLocaleDateString('en-GB')}</div>}
-                <div><strong>Opening Gross Block:</strong> {formatCurrency(details.openingGrossBlock)}</div>
-                <div><strong>Opening Accum. Dep:</strong> {formatCurrency(details.openingAccumulatedDepreciation)}</div>
-                {method === 'SLM' && <div><strong>Residual Value:</strong> {formatCurrency(asset.residualValue)}</div>}
-                {asset.disposalDate && <div><strong>Sale Value:</strong> {formatCurrency(asset.saleValue)}</div>}
-            </div>
-
-            {asset.additions.length > 0 && (
-                <div style={{marginBottom: '1rem'}}>
-                    <strong style={{fontSize: '9pt'}}>Additions:</strong>
-                    <ul style={{listStyle: 'disc', paddingLeft: '20px', fontSize: '9pt', margin: '0.25rem 0'}}>
-                        {asset.additions.map((add, i) => (
-                             <li key={i}>Purchased on {new Date(add.date).toLocaleDateString('en-GB')} for {formatCurrency(add.cost)}</li>
-                        ))}
-                    </ul>
-                </div>
-            )}
-            
-            <div>
-                <strong style={{fontSize: '10pt'}}>Calculation Workings:</strong>
-                <table className="print-workings-table">
-                    <tbody>
-                        {details.workings.map((item, index) => (
-                        <tr key={index}>
-                            <td>
-                                <div className="calc-desc">{item.description}</div>
-                                <div className="calc-string">{item.calculation}</div>
-                            </td>
-                            <td className="calc-amount">{formatCurrency(item.amount)}</td>
-                        </tr>
-                        ))}
-                         {details.workings.length === 0 && (
-                             <tr><td>No depreciation calculated for the year.</td><td></td></tr>
-                         )}
-                    </tbody>
-                </table>
-            </div>
-
-            <div className="print-final-summary">
-                <div className="summary-row">
-                    <span>Depreciation For The Year</span>
-                    <span>{formatCurrency(details.depreciationForYear)}</span>
-                </div>
-                {asset.disposalDate && details.profitOrLoss !== 0 && (
-                    <div className={`summary-row ${details.profitOrLoss >= 0 ? 'profit' : 'loss'}`}>
-                        <span>{details.profitOrLoss >= 0 ? 'Profit on Sale' : 'Loss on Sale'}</span>
-                        <span>{formatCurrency(Math.abs(details.profitOrLoss))}</span>
-                    </div>
-                )}
-                <div className="summary-row net-block">
-                    <span>Closing Net Block</span>
-                    <span>{formatCurrency(details.closingWDV)}</span>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-/**
- * The main container for all printable content.
- */
-const PrintLayout = ({ calculationResults, method, FY_LABEL, summaryData }) => {
-    return (
-        <div className="print-container">
-            <header className="print-header">
-                <h1>Depreciation Calculator</h1>
-                <p>For the Financial Year {FY_LABEL}</p>
-            </header>
-            
-            <section>
-                <PrintSummaryTable summaryData={summaryData} />
-            </section>
-            
-            {calculationResults.length > 0 && (
-               <section>
-                    <h2 className="print-section-title">Asset Details</h2>
-                    {calculationResults.map(result => (
-                        <PrintAssetDetail 
-                            key={`print-${result.id}`}
-                            asset={result.asset}
-                            details={result.details}
-                            method={method}
-                        />
                     ))}
-               </section>
-            )}
+                     {details.workings.length === 0 && (
+                         <tr><td>No depreciation calculated for the year.</td><td></td></tr>
+                     )}
+                </tbody>
+            </table>
         </div>
-    );
-};
-// --- END: New and Refactored Print Components ---
+        <div className="print-final-summary">
+            <div className="summary-row">
+                <span>Depreciation For The Year</span>
+                <span>{formatCurrency(details.depreciationForYear)}</span>
+            </div>
+            {asset.disposalDate && details.profitOrLoss !== 0 && (
+                <div className={`summary-row ${details.profitOrLoss >= 0 ? 'profit' : 'loss'}`}>
+                    <span>{details.profitOrLoss >= 0 ? 'Profit on Sale' : 'Loss on Sale'}</span>
+                    <span>{formatCurrency(Math.abs(details.profitOrLoss))}</span>
+                </div>
+            )}
+            <div className="summary-row net-block">
+                <span>Closing Net Block</span>
+                <span>{formatCurrency(details.closingWDV)}</span>
+            </div>
+        </div>
+    </div>
+);
+const PrintLayout = ({ calculationResults, method, FY_LABEL, summaryData }) => (
+    <div className="print-container">
+        <header className="print-header">
+            <h1>Depreciation Calculator</h1>
+            <p>For the Financial Year {FY_LABEL}</p>
+        </header>
+        <section>
+            <PrintSummaryTable summaryData={summaryData} />
+        </section>
+        {calculationResults.length > 0 && (
+           <section>
+                <h2 className="print-section-title">Asset Details</h2>
+                {calculationResults.map(result => (
+                    <PrintAssetDetail 
+                        key={`print-${result.id}`}
+                        asset={result.asset}
+                        details={result.details}
+                        method={method}
+                    />
+                ))}
+           </section>
+        )}
+    </div>
+);
+// --- END: Print Components ---
 
 
 const SummaryReport = ({ summaryData, onFilterChange, showToast, filterType, theme }) => {
@@ -1066,6 +911,27 @@ const SummaryReport = ({ summaryData, onFilterChange, showToast, filterType, the
     );
 };
 
+const EmptyState = ({ addAsset }) => (
+    <div className="text-center p-8 md:p-16 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg rounded-2xl shadow-lg border border-white/30 dark:border-slate-700/50">
+        <svg className="mx-auto h-24 w-24 text-slate-400 dark:text-slate-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+        </svg>
+        <h3 className="mt-4 text-2xl font-bold text-slate-700 dark:text-slate-200">Your Asset Register is Empty</h3>
+        <p className="mt-2 text-slate-500 dark:text-slate-400">Get started by adding your first asset to calculate depreciation.</p>
+        <div className="mt-6">
+            <button
+                onClick={addAsset}
+                className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+                <svg className="-ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                   <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                </svg>
+                Add First Asset
+            </button>
+        </div>
+    </div>
+);
+
 
 export default function App() {
     const [isLoading, setIsLoading] = useState(true);
@@ -1076,6 +942,7 @@ export default function App() {
     const [toast, setToast] = useState({ message: '', show: false });
     const [filterType, setFilterType] = useState(null);
     const [selectedAssetId, setSelectedAssetId] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
 
     const debouncedAssets = useDebounce(assets, 250);
     const debouncedMethod = useDebounce(method, 250);
@@ -1126,15 +993,11 @@ export default function App() {
                     setAssets(savedAssets.map(a => ({...a, isSelected: false, isNew: false })) || []);
                     setMethod(savedMethod || 'WDV');
                 } else {
-                    const defaultAsset = { 
-                        id: Date.now(), name: "Sample Machinery", openingGrossBlock: '500000', openingAccumulatedDepreciation: '50000', residualValue: '25000',
-                        additions: [], assetType: 'general_machinery', isSelected: false, isNew: false,
-                        purchaseDate: '2022-06-15', disposalDate: '', saleValue: ''
-                    };
-                    setAssets([defaultAsset]);
+                     setAssets([]); // Start with an empty list for the new empty state
                 }
             } catch (error) {
                 console.error("Failed to load state from localStorage", error);
+                 setAssets([]); // Default to empty on error
             }
             setIsLoading(false);
         }, 1000); 
@@ -1242,17 +1105,43 @@ export default function App() {
     }, [calculationResults]);
 
     const filteredAssets = useMemo(() => {
-        if (!filterType) {
-            return calculationResults;
+        let results = calculationResults;
+        if (filterType) {
+            results = results.filter(result => result.asset.assetType === filterType);
         }
-        return calculationResults.filter(result => result.asset.assetType === filterType);
-    }, [calculationResults, filterType]);
+        if (searchTerm) {
+            results = results.filter(result => 
+                result.asset.name.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+        }
+        return results;
+    }, [calculationResults, filterType, searchTerm]);
 
     const selectedAssetCount = useMemo(() => assets.filter(a => a.isSelected).length, [assets]);
 
     const selectedAssetData = useMemo(() => {
         return calculationResults.find(r => r.id === selectedAssetId);
     }, [selectedAssetId, calculationResults]);
+    
+    const allVisibleSelected = useMemo(() => {
+        const visibleIds = new Set(filteredAssets.map(a => a.id));
+        if (visibleIds.size === 0) return false;
+        const selectedVisible = assets.filter(a => a.isSelected && visibleIds.has(a.id));
+        return selectedVisible.length === visibleIds.size;
+    }, [assets, filteredAssets]);
+
+    const handleSelectAll = useCallback(() => {
+        const visibleIds = new Set(filteredAssets.map(a => a.id));
+        const shouldSelectAll = !allVisibleSelected;
+        setAssets(prevAssets => 
+            prevAssets.map(asset => {
+                if (visibleIds.has(asset.id)) {
+                    return {...asset, isSelected: shouldSelectAll};
+                }
+                return asset;
+            })
+        );
+    }, [filteredAssets, allVisibleSelected]);
 
     return (
         <div className={theme}>
@@ -1298,32 +1187,53 @@ export default function App() {
                         <button onClick={() => handleMethodChange('SLM')} className={`w-1/2 py-2 px-4 rounded-lg text-sm font-semibold transition-all duration-300 ${method === 'SLM' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'}`}>Straight-Line Method (SLM)</button>
                     </div>
 
-                    <div className="flex justify-between items-center mb-4">
-                      <div className="flex items-center gap-4">
-                        <Tooltip text="Each card represents a single asset for financial reporting (per Ind AS 16). For Income Tax block calculations, aggregate results manually.">
-                            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center">
-                                Assets
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            </h2>
-                        </Tooltip>
-                        {filterType && !isLoading && (
-                            <button onClick={() => setFilterType(null)} className="px-3 py-1 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 text-sm font-semibold rounded-lg shadow-sm hover:bg-indigo-200 dark:hover:bg-indigo-900 transition-colors flex items-center gap-1">
-                                <span>Filtering by: {filterType.replace(/_/g, ' ')}</span>
-                                <span className="font-bold">&times;</span>
-                            </button>
-                        )}
-                      </div>
-                       {selectedAssetCount > 0 && (
-                          <button onClick={handleDeleteRequest} className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-sm hover:bg-red-700 transition-colors">
-                            Delete Selected ({selectedAssetCount})
-                          </button>
-                       )}
-                    </div>
-
                     <main>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div className="mb-4">
+                           <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-4">Assets</h2>
+                           
+                            {selectedAssetCount > 0 && (
+                                <div className="flex items-center gap-4 mb-4">
+                                    <button onClick={handleSelectAll} className="px-4 py-2 bg-slate-600 text-white font-semibold rounded-lg shadow-sm hover:bg-slate-700 transition-colors text-sm">
+                                        {allVisibleSelected ? 'Deselect All' : 'Select All'}
+                                    </button>
+                                    <button onClick={handleDeleteRequest} className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-sm hover:bg-red-700 transition-colors text-sm">
+                                        Delete ({selectedAssetCount})
+                                    </button>
+                                </div>
+                            )}
+
+                           <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
+                                <div className="relative w-full md:max-w-md">
+                                     <input
+                                        type="text"
+                                        placeholder="Search assets by name..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="w-full bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 border-2 border-slate-300 dark:border-slate-600 rounded-lg pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm transition"
+                                    />
+                                    <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                </div>
+                                {filterType && !isLoading && (
+                                    <button onClick={() => setFilterType(null)} className="px-3 py-2 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 text-sm font-semibold rounded-lg shadow-sm hover:bg-indigo-200 dark:hover:bg-indigo-900 transition-colors flex items-center gap-1">
+                                        <span>Filtering by: {filterType.replace(/_/g, ' ')}</span>
+                                        <span className="font-bold">&times;</span>
+                                    </button>
+                                )}
+                           </div>
+                        </div>
+
+                        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {isLoading ? (
                                 [...Array(3)].map((_, i) => <SkeletonCard key={i} />)
+                            ) : assets.length === 0 ? (
+                                <div className="md:col-span-2 lg:col-span-3">
+                                   <EmptyState addAsset={addAsset} />
+                                </div>
+                            ) : filteredAssets.length === 0 ? (
+                                <div className="md:col-span-2 lg:col-span-3 text-center p-8 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg rounded-2xl shadow-lg">
+                                    <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200">No assets match your search or filter.</h3>
+                                    <p className="text-slate-500 dark:text-slate-400 mt-2">Try clearing your search term or filter.</p>
+                                </div>
                             ) : (
                                 filteredAssets.map((result, index) => 
                                     <AssetCard 
@@ -1336,24 +1246,14 @@ export default function App() {
                                     />
                                 )
                             )}
-                            { !isLoading && filteredAssets.length === 0 && assets.length > 0 && (
-                                <div className="text-center p-8 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg rounded-2xl shadow-lg md:col-span-2 lg:col-span-3">
-                                    <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200">No assets match your filter.</h3>
-                                    <p className="text-slate-500 dark:text-slate-400 mt-2">Click the filter tag above to clear it.</p>
-                                </div>
-                            )}
-                             { !isLoading && assets.length === 0 && (
-                                <div className="text-center p-8 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg rounded-2xl shadow-lg md:col-span-2 lg:col-span-3">
-                                    <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200">No assets to display.</h3>
-                                    <p className="text-slate-500 dark:text-slate-400 mt-2">Click the button below to add your first asset.</p>
-                                </div>
-                            )}
                         </div>
                     </main>
-
-                    <button onClick={addAsset} className="fixed bottom-6 right-6 md:bottom-8 md:right-8 h-16 w-16 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center justify-center" title="Add New Asset" aria-label="Add new asset">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                    </button>
+                    
+                    {!isLoading && assets.length > 0 && (
+                         <button onClick={addAsset} className="fixed bottom-6 right-6 md:bottom-8 md:right-8 h-16 w-16 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center justify-center" title="Add New Asset" aria-label="Add new asset">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                        </button>
+                    )}
                     
                     {selectedAssetData && (
                         <AssetDetailPanel
