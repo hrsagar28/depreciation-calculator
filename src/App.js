@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { PieChart, Pie, Cell, Tooltip as ChartTooltip, ResponsiveContainer, Legend } from 'recharts';
-// PapaParse and React-Beautiful-DND are loaded via script tags in the App component to avoid import errors.
+// PapaParse is loaded via a script tag in the App component to avoid import errors.
 
 // --- Config & Data ---
 const FINANCIAL_YEAR_CONFIG = {
@@ -249,11 +249,11 @@ const Tooltip = ({ text, children }) => (
     </div>
 );
 
-const AssetCard = ({ asset, details, onSelect, onEdit, isDragging }) => {
+const AssetCard = ({ asset, details, onSelect, onEdit }) => {
     return (
         <div
             onClick={onEdit}
-            className={`bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg border border-white/30 dark:border-slate-700/50 rounded-2xl shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 cursor-pointer ${isDragging ? 'opacity-50 scale-105 shadow-2xl' : ''}`}
+            className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg border border-white/30 dark:border-slate-700/50 rounded-2xl shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 cursor-pointer"
         >
             <div className="p-5 sm:p-4">
                 <div className="flex justify-between items-start gap-4">
@@ -536,6 +536,7 @@ const SkeletonSummary = () => (
             </div>
         </div>
     </div>
+
 );
 
 
@@ -910,6 +911,7 @@ const SummaryReport = ({ summaryData, onFilterChange, showToast, filterType, the
           )}
       </div>
     );
+
 };
 
 const EmptyState = ({ addAsset }) => (
@@ -941,13 +943,9 @@ export default function App() {
     const [assets, setAssets] = useState([]);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [toast, setToast] = useState({ message: '', show: false, onUndo: null });
-    const [lastDeleted, setLastDeleted] = useState(null);
     const [filterType, setFilterType] = useState(null);
     const [selectedAssetId, setSelectedAssetId] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [dndComponents, setDndComponents] = useState(null);
-
-    const { DragDropContext, Droppable, Draggable } = dndComponents || {};
 
     const debouncedAssets = useDebounce(assets, 250);
     const debouncedMethod = useDebounce(method, 250);
@@ -958,7 +956,7 @@ export default function App() {
     },[]);
     
     const hideToast = useCallback(() => {
-        setToast(prev => ({ ...prev, show: false }));
+        setToast(prev => ({ ...prev, show: false, onUndo: null }));
     }, []);
     
     const saveState = useCallback((stateToSave) => {
@@ -975,23 +973,6 @@ export default function App() {
     }, [showToast]);
 
     useEffect(() => {
-        const dndScriptId = 'react-beautiful-dnd-script';
-        if (!document.getElementById(dndScriptId)) {
-            const script = document.createElement('script');
-            script.id = dndScriptId;
-            script.src = "https://cdnjs.cloudflare.com/ajax/libs/react-beautiful-dnd/13.1.1/react-beautiful-dnd.min.js";
-            script.async = true;
-            script.onload = () => {
-                if(window.ReactBeautifulDnd) {
-                    console.log('React Beautiful DND loaded');
-                    setDndComponents(window.ReactBeautifulDnd);
-                }
-            };
-            document.head.appendChild(script);
-        } else if (window.ReactBeautifulDnd && !dndComponents) {
-             setDndComponents(window.ReactBeautifulDnd);
-        }
-
         const papaScriptId = 'papaparse-script';
         if (!document.getElementById(papaScriptId)) {
             const script = document.createElement('script');
@@ -1002,7 +983,7 @@ export default function App() {
             script.onerror = () => showToast("Export feature unavailable. Please check your internet connection and refresh.");
             document.head.appendChild(script);
         }
-    }, [showToast, dndComponents]);
+    }, [showToast]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -1044,7 +1025,7 @@ export default function App() {
             assetType: '', isNew: true, isSelected: false,
             purchaseDate: '', disposalDate: '', saleValue: ''
         };
-        const newAssets = [...assets, newAsset];
+        const newAssets = [newAsset, ...assets];
         setAssets(newAssets);
         setSelectedAssetId(newId);
         setFilterType(null);
@@ -1070,20 +1051,18 @@ export default function App() {
       const assetsToDelete = assets.filter(a => a.isSelected);
       const newAssets = assets.filter(asset => !asset.isSelected);
       
-      setLastDeleted({ assets: assetsToDelete, originalState: originalAssets });
       setAssets(newAssets);
       setIsDeleteModalOpen(false);
       setSelectedAssetId(null);
       
-      showToast(`${assetsToDelete.length} asset(s) deleted.`, () => handleUndoDelete(originalAssets));
-    }, [assets, showToast]);
+      const undo = () => {
+          setAssets(originalAssets);
+          hideToast();
+          showToast("Deletion undone.");
+      };
+      showToast(`${assetsToDelete.length} asset(s) deleted.`, undo);
+    }, [assets, showToast, hideToast]);
     
-    const handleUndoDelete = (originalAssets) => {
-        setAssets(originalAssets);
-        hideToast();
-        showToast("Deletion undone.");
-    };
-
     const handleMethodChange = (newMethod) => {
         if (method !== newMethod && assets.some(a => a.openingGrossBlock || a.additions.length > 0)) {
             showToast("Method switched. Please review assets as Residual Value requirements may have changed.");
@@ -1149,11 +1128,6 @@ export default function App() {
         return results;
     }, [calculationResults, filterType, searchTerm]);
     
-    // Create a map for quick lookups
-    const filteredAssetIds = useMemo(() => new Set(filteredAssetResults.map(r => r.id)), [filteredAssetResults]);
-    // The assets to be rendered are the original assets, but filtered and ordered for display
-    const assetsToDisplay = useMemo(() => assets.filter(a => filteredAssetIds.has(a.id)), [assets, filteredAssetIds]);
-
     const selectedAssetCount = useMemo(() => assets.filter(a => a.isSelected).length, [assets]);
 
     const selectedAssetData = useMemo(() => {
@@ -1161,12 +1135,15 @@ export default function App() {
     }, [selectedAssetId, calculationResults]);
     
     const allVisibleSelected = useMemo(() => {
-        if (assetsToDisplay.length === 0) return false;
-        return assetsToDisplay.every(a => a.isSelected);
-    }, [assetsToDisplay]);
+        const visibleIds = new Set(filteredAssetResults.map(r => r.id));
+        if(visibleIds.size === 0) return false;
+        const visibleAssets = assets.filter(a => visibleIds.has(a.id));
+        if(visibleAssets.length === 0) return false;
+        return visibleAssets.every(a => a.isSelected);
+    }, [assets, filteredAssetResults]);
 
     const handleSelectAll = useCallback(() => {
-        const visibleIds = new Set(assetsToDisplay.map(a => a.id));
+        const visibleIds = new Set(filteredAssetResults.map(a => a.id));
         const shouldSelectAll = !allVisibleSelected;
         setAssets(prevAssets => 
             prevAssets.map(asset => {
@@ -1176,74 +1153,26 @@ export default function App() {
                 return asset;
             })
         );
-    }, [assetsToDisplay, allVisibleSelected]);
+    }, [filteredAssetResults, allVisibleSelected]);
 
-    const onDragEnd = (result) => {
-        const { destination, source } = result;
-        if (!destination) return;
-        if (destination.droppableId === source.droppableId && destination.index === source.index) return;
-        
-        const newAssets = Array.from(assets);
-        const [reorderedItem] = newAssets.splice(source.index, 1);
-        newAssets.splice(destination.index, 0, reorderedItem);
-
-        setAssets(newAssets);
-    };
-
-    const isFiltered = searchTerm || filterType;
-    
-    const DraggableAssetList = dndComponents ? (
-        <DragDropContext onDragEnd={onDragEnd}>
-            <Droppable droppableId="assets">
-                {(provided) => (
-                    <div 
-                        {...provided.droppableProps}
-                        ref={provided.innerRef}
-                        className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-                    >
-                        {assets.map((asset, index) => {
-                            const result = calculationResults.find(r => r.id === asset.id);
-                            if (!result) return null;
-                            return (
-                                <Draggable key={result.id} draggableId={String(result.id)} index={index}>
-                                    {(provided, snapshot) => (
-                                        <div
-                                            ref={provided.innerRef}
-                                            {...provided.draggableProps}
-                                            {...provided.dragHandleProps}
-                                        >
-                                            <AssetCard 
-                                                asset={result.asset}
-                                                details={result.details}
-                                                onSelect={handleSelectAsset}
-                                                onEdit={() => setSelectedAssetId(result.id)}
-                                                isDragging={snapshot.isDragging}
-                                            />
-                                        </div>
-                                    )}
-                                </Draggable>
-                            );
-                        })}
-                        {provided.placeholder}
-                    </div>
-                )}
-            </Droppable>
-        </DragDropContext>
-    ) : null;
-
-    const NonDraggableAssetList = (
-         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredAssetResults.map((result, index) => 
-                <AssetCard 
-                    key={result.id} 
-                    asset={result.asset}
-                    details={result.details}
-                    onSelect={handleSelectAsset}
-                    onEdit={() => setSelectedAssetId(result.id)}
-                />
-            )}
-        </div>
-    );
+    const renderAssetList = () => {
+       if (isLoading) {
+         return <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{[...Array(3)].map((_, i) => <SkeletonCard key={i} />)}</div>;
+       }
+       if (assets.length === 0) {
+         return <div className="md:col-span-2 lg:col-span-3"><EmptyState addAsset={addAsset} /></div>;
+       }
+       if (filteredAssetResults.length === 0) {
+         return <div className="md:col-span-2 lg:col-span-3 text-center p-8 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg rounded-2xl shadow-lg"><h3 className="text-xl font-bold text-slate-700 dark:text-slate-200">No assets match your search or filter.</h3><p className="text-slate-500 dark:text-slate-400 mt-2">Try clearing your search term or filter.</p></div>;
+       }
+       return (
+           <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+               {filteredAssetResults.map((result) => (
+                   <AssetCard key={result.id} asset={result.asset} details={result.details} onSelect={handleSelectAsset} onEdit={() => setSelectedAssetId(result.id)} />
+               ))}
+           </div>
+       );
+   };
 
     return (
         <div className={theme}>
@@ -1328,23 +1257,8 @@ export default function App() {
                                 )}
                            </div>
                         </div>
-
-                        {isLoading ? (
-                            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {[...Array(3)].map((_, i) => <SkeletonCard key={i} />)}
-                            </div>
-                        ) : assets.length === 0 ? (
-                            <div className="md:col-span-2 lg:col-span-3">
-                               <EmptyState addAsset={addAsset} />
-                            </div>
-                        ) : filteredAssetResults.length === 0 ? (
-                            <div className="md:col-span-2 lg:col-span-3 text-center p-8 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg rounded-2xl shadow-lg">
-                                <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200">No assets match your search or filter.</h3>
-                                <p className="text-slate-500 dark:text-slate-400 mt-2">Try clearing your search term or filter.</p>
-                            </div>
-                        ) : (
-                            dndComponents && !isFiltered ? DraggableAssetList : NonDraggableAssetList
-                        )}
+                        
+                        {renderAssetList()}
                         
                     </main>
                     
