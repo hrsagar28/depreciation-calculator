@@ -42,6 +42,7 @@ const isValidDate = (dateString) => {
     return date instanceof Date && !isNaN(date) && date <= today && date >= earliestDate;
 }
 
+// Days used calculation is now inclusive of start and end dates.
 const getDaysUsed = (purchaseDateStr, disposalDateStr = null) => {
     const currentFYStart = new Date(FY_START_DATE);
     const financialYearEnd = new Date(`${FY_END_DATE}T23:59:59`);
@@ -68,8 +69,10 @@ const getDaysUsed = (purchaseDateStr, disposalDateStr = null) => {
     const daysInYear = getDaysInFY(effectiveStartDate);
     if (effectiveEndDate < effectiveStartDate) return { daysUsed: 0, daysInYear };
     
+    // Calculate difference in milliseconds and add 1 day worth of milliseconds for inclusivity
     const diffTime = effectiveEndDate - effectiveStartDate;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (diffTime < 0) return { daysUsed: 0, daysInYear };
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
     
     return { daysUsed: Math.max(0, diffDays), daysInYear };
 };
@@ -241,9 +244,9 @@ const calculateAssetDetails = (asset, method) => {
 
 // --- UI Components ---
 const Tooltip = ({ text, children }) => (
-    <div className="relative flex items-center group">
+    <div className="relative flex items-center group" tabIndex="0">
         {children}
-        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-48 bg-slate-800 text-white text-xs rounded-lg py-2 px-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-20 shadow-lg">
+        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-48 bg-slate-800 text-white text-xs rounded-lg py-2 px-3 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-300 pointer-events-none z-20 shadow-lg">
             {text}
             <svg className="absolute text-slate-800 h-2 w-full left-0 bottom-full transform rotate-180" x="0px" y="0px" viewBox="0 0 255 255"><polygon className="fill-current" points="0,0 127.5,127.5 255,0"/></svg>
         </div>
@@ -290,6 +293,8 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, onClose }) => {
     const isAdditionDateInvalid = newAddition.date && !isValidDate(newAddition.date);
     const isResidualValueEmptyForSLM = method === 'SLM' && asset.residualValue === '';
     
+    const isDisposalDateInvalid = asset.disposalDate && asset.purchaseDate && new Date(asset.disposalDate) < new Date(asset.purchaseDate);
+
     const isSaleValueHigh = useMemo(() => {
         if (!asset.disposalDate || details.profitOrLoss === undefined) return false;
         const saleValueNum = parseFloat(asset.saleValue) || 0;
@@ -341,7 +346,7 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, onClose }) => {
                 <div className="flex-shrink-0 p-6 border-b border-slate-200 dark:border-slate-700">
                     <div className="flex justify-between items-center">
                         <input ref={nameInputRef} type="text" value={asset.name} placeholder="Enter Asset Name" onChange={(e) => updateAsset(asset.id, {...asset, name: e.target.value})} className="text-2xl font-bold text-slate-800 dark:text-slate-100 bg-transparent focus:outline-none focus:ring-0 border-none p-0 w-full placeholder-slate-400 dark:placeholder-slate-500"/>
-                        <button onClick={handleClose} className="p-2 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                        <button onClick={handleClose} className="p-2 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" aria-label="Close panel">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
                     </div>
@@ -362,6 +367,11 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, onClose }) => {
                                 <option value="buildings_non_rcc">Building - non-RCC</option>
                             </select>
                             {!asset.assetType && <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">Select an asset type to calculate depreciation.</p>}
+                            {method === 'SLM' && asset.assetType && (
+                                <div className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+                                    Useful Life: <span className="font-semibold">{SCHEDULE_II_SLM_USEFUL_LIFE[asset.assetType]} years</span>
+                                </div>
+                            )}
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-6">
@@ -406,12 +416,14 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, onClose }) => {
                                  return (
                                      <div key={index} className={`flex items-center gap-2 mb-2 p-2 rounded-md text-sm ${isExistingAdditionInvalid ? 'bg-red-100 dark:bg-red-900/30' : 'bg-indigo-50 dark:bg-indigo-900/30'}`}>
                                          <span className={`flex-grow ${isExistingAdditionInvalid ? 'text-red-800 dark:text-red-300' : 'text-indigo-800 dark:text-indigo-300'}`}>Purchased on {add.date ? new Date(add.date).toLocaleDateString('en-GB') : '??'} for {formatCurrency(add.cost)}{residualText} {isExistingAdditionInvalid && '(Invalid Date)'}</span>
-                                        <button onClick={() => removeAddition(index)} className="p-1 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50 no-print" title="Remove Addition"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg></button>
+                                        <button onClick={() => removeAddition(index)} className="p-1 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50 no-print" title="Remove Addition" aria-label={`Remove addition on ${add.date}`}>
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+                                        </button>
                                      </div>
                                  );
                              })}
                             <div className="flex flex-col sm:flex-row items-center gap-2 mt-3 no-print">
-                                <input type="date" value={newAddition.date} onChange={(e) => setNewAddition(p => ({...p, date: e.target.value}))} className={`${inputFieldClass} flex-1`} min={FY_START_DATE} max={FY_END_DATE}/>
+                                <input type="date" value={newAddition.date} onChange={(e) => setNewAddition(p => ({...p, date: e.target.value}))} className={`${inputFieldClass} flex-1`} min={FY_START_DATE} max={asset.disposalDate || FY_END_DATE}/>
                                 <input type="number" value={newAddition.cost} onChange={(e) => setNewAddition(p => ({...p, cost: e.target.value}))} placeholder="Cost of Addition (₹)" className={`${inputFieldClass} flex-1`}/>
                                 {method === 'SLM' && (
                                    <Tooltip text="Optional: Residual value for this specific addition. Defaults to 0 if empty.">
@@ -444,7 +456,8 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, onClose }) => {
                                  </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Disposal Date</label>
-                                    <input type="date" name="disposalDate" value={asset.disposalDate} onChange={handleInputChange} className={inputFieldClass} min={FY_START_DATE} max={FY_END_DATE} />
+                                    <input type="date" name="disposalDate" value={asset.disposalDate} onChange={handleInputChange} className={`${inputFieldClass} ${isDisposalDateInvalid ? 'border-red-500 ring-1 ring-red-500' : ''}`} min={FY_START_DATE} max={FY_END_DATE} />
+                                    {isDisposalDateInvalid && <p className="text-xs text-red-600 mt-1">Disposal date cannot be before purchase date.</p>}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
@@ -991,8 +1004,11 @@ export default function App() {
       }
     }, [assets, method, theme, showToast, saveState]);
 
-    const handleFilterChange = (newFilter) => {
-        setFilterType(prevFilter => (prevFilter === newFilter ? null : newFilter));
+    const handleMethodChange = (newMethod) => {
+        if (method !== newMethod && assets.some(a => a.openingGrossBlock || a.additions.length > 0)) {
+            showToast("Method switched. Please review assets as Residual Value requirements may have changed.");
+        }
+        setMethod(newMethod);
     };
     
     const calculationResults = useMemo(() => {
@@ -1043,11 +1059,11 @@ export default function App() {
                         </div>
                     </header>
                     
-                    {isLoading ? <SkeletonSummary /> : <SummaryReport calculationResults={calculationResults} onFilterChange={handleFilterChange} showToast={showToast} filterType={filterType} theme={theme}/>}
+                    {isLoading ? <SkeletonSummary /> : <SummaryReport calculationResults={calculationResults} onFilterChange={setFilterType} showToast={showToast} filterType={filterType} theme={theme}/>}
 
                     <div className="max-w-lg mx-auto mb-6 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg p-2 rounded-xl flex space-x-2 border border-white/30 dark:border-slate-700/50 shadow-sm no-print">
-                        <button onClick={() => setMethod('WDV')} className={`w-1/2 py-2 px-4 rounded-lg text-sm font-semibold transition-all duration-300 ${method === 'WDV' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'}`}>Written Down Value (WDV)</button>
-                        <button onClick={() => setMethod('SLM')} className={`w-1/2 py-2 px-4 rounded-lg text-sm font-semibold transition-all duration-300 ${method === 'SLM' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'}`}>Straight-Line Method (SLM)</button>
+                        <button onClick={() => handleMethodChange('WDV')} className={`w-1/2 py-2 px-4 rounded-lg text-sm font-semibold transition-all duration-300 ${method === 'WDV' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'}`}>Written Down Value (WDV)</button>
+                        <button onClick={() => handleMethodChange('SLM')} className={`w-1/2 py-2 px-4 rounded-lg text-sm font-semibold transition-all duration-300 ${method === 'SLM' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'}`}>Straight-Line Method (SLM)</button>
                     </div>
 
                     <div className="flex justify-between items-center mb-4">
@@ -1103,7 +1119,6 @@ export default function App() {
                         </div>
                     </main>
 
-                    {/* Print-only section */}
                     <div className="hidden print-only">
                         <h2 className="text-2xl font-bold text-slate-800 mb-4 pt-8">Asset Details</h2>
                         {calculationResults.map(result => (
@@ -1117,7 +1132,7 @@ export default function App() {
                     </div>
 
 
-                    <button onClick={addAsset} className="fixed bottom-6 right-6 md:bottom-8 md:right-8 h-16 w-16 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center justify-center no-print" title="Add New Asset">
+                    <button onClick={addAsset} className="fixed bottom-6 right-6 md:bottom-8 md:right-8 h-16 w-16 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center justify-center no-print" title="Add New Asset" aria-label="Add new asset">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                     </button>
                     
