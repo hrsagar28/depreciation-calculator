@@ -3,7 +3,6 @@ import { PieChart, Pie, Cell, Tooltip as ChartTooltip, ResponsiveContainer, Lege
 // PapaParse is loaded via a script tag in the App component to avoid import errors.
 
 // --- Config & Data ---
-// Financial year can be configured here for future updates.
 const FINANCIAL_YEAR_CONFIG = {
   start: '2024-04-01',
   end: '2025-03-31',
@@ -32,17 +31,14 @@ const getDaysInFY = (date) => {
     return isLeapYear(fyEndYear) ? 366 : 365;
 };
 
-// Validates dates to ensure they are reasonable and not in the future.
 const isValidDate = (dateString) => {
     const date = new Date(dateString);
     const today = new Date();
     today.setHours(0,0,0,0);
-    // Relaxed date validation to allow for older historical assets.
     const earliestDate = new Date('1900-01-01');
     return date instanceof Date && !isNaN(date) && date <= today && date >= earliestDate;
 }
 
-// Days used calculation is now inclusive of start and end dates.
 const getDaysUsed = (purchaseDateStr, disposalDateStr = null) => {
     const currentFYStart = new Date(FY_START_DATE);
     const financialYearEnd = new Date(`${FY_END_DATE}T23:59:59`);
@@ -69,7 +65,6 @@ const getDaysUsed = (purchaseDateStr, disposalDateStr = null) => {
     const daysInYear = getDaysInFY(effectiveStartDate);
     if (effectiveEndDate < effectiveStartDate) return { daysUsed: 0, daysInYear };
     
-    // Calculate difference in milliseconds and add 1 day worth of milliseconds for inclusivity
     const diffTime = effectiveEndDate - effectiveStartDate;
     if (diffTime < 0) return { daysUsed: 0, daysInYear };
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
@@ -108,12 +103,13 @@ const calculateAssetDetails = (asset, method) => {
         };
     }
      if (openingAccumulatedDepreciation > openingGrossBlock) {
-        const closingGrossBlock = openingGrossBlock + asset.additions.reduce((sum, add) => sum + (Math.max(0, parseFloat(add.cost)) || 0), 0);
+        const grossBlockAdditions = asset.additions.reduce((sum, add) => sum + (Math.max(0, parseFloat(add.cost)) || 0), 0);
+        const closingGrossBlock = openingGrossBlock + grossBlockAdditions;
         return {
             rate: '0.00', usefulLife: 0, depreciationForYear: 0, 
             closingAccumulatedDepreciation: openingAccumulatedDepreciation, closingWDV: closingGrossBlock - openingAccumulatedDepreciation,
-            workings: [], profitOrLoss: 0, openingGrossBlock, grossBlockAdditions: asset.additions.reduce((sum, add) => sum + (Math.max(0, parseFloat(add.cost)) || 0), 0), 
-            disposalsCost: 0, closingGrossBlock,
+            workings: [], profitOrLoss: 0, openingGrossBlock, grossBlockAdditions: grossBlockAdditions, 
+            disposalsCost: 0, closingGrossBlock, openingAccumulatedDepreciation: openingAccumulatedDepreciation
         };
     }
 
@@ -262,7 +258,7 @@ const AssetCard = ({ asset, details, onSelect, onEdit, animationDelay }) => {
             >
                 <div className="p-5 sm:p-4">
                     <div className="flex justify-between items-start gap-4">
-                        <div className="flex items-center flex-shrink-0 mr-4 no-print">
+                        <div className="flex items-center flex-shrink-0 mr-4">
                             <input type="checkbox" checked={asset.isSelected} onChange={(e) => onSelect(asset.id, e.target.checked)} onClick={(e) => e.stopPropagation()} className="h-6 w-6 rounded border-slate-400 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 cursor-pointer"/>
                         </div>
                         <div className="flex-1 min-w-0">
@@ -340,7 +336,7 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, onClose }) => {
     const isDisposed = !!asset.disposalDate;
     
     return (
-        <div className="fixed inset-0 z-40 flex justify-end no-print">
+        <div className="fixed inset-0 z-40 flex justify-end">
             <div className={`absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'}`} onClick={handleClose}></div>
             <div className={`relative bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl w-full md:max-w-2xl h-full shadow-2xl flex flex-col transition-transform duration-300 ease-in-out ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}>
                 <div className="flex-shrink-0 p-6 border-b border-slate-200 dark:border-slate-700">
@@ -416,13 +412,13 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, onClose }) => {
                                  return (
                                      <div key={index} className={`flex items-center gap-2 mb-2 p-2 rounded-md text-sm ${isExistingAdditionInvalid ? 'bg-red-100 dark:bg-red-900/30' : 'bg-indigo-50 dark:bg-indigo-900/30'}`}>
                                          <span className={`flex-grow ${isExistingAdditionInvalid ? 'text-red-800 dark:text-red-300' : 'text-indigo-800 dark:text-indigo-300'}`}>Purchased on {add.date ? new Date(add.date).toLocaleDateString('en-GB') : '??'} for {formatCurrency(add.cost)}{residualText} {isExistingAdditionInvalid && '(Invalid Date)'}</span>
-                                        <button onClick={() => removeAddition(index)} className="p-1 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50 no-print" title="Remove Addition" aria-label={`Remove addition on ${add.date}`}>
+                                        <button onClick={() => removeAddition(index)} className="p-1 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50" title="Remove Addition" aria-label={`Remove addition on ${add.date}`}>
                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
                                         </button>
                                      </div>
                                  );
                              })}
-                            <div className="flex flex-col sm:flex-row items-center gap-2 mt-3 no-print">
+                            <div className="flex flex-col sm:flex-row items-center gap-2 mt-3">
                                 <input type="date" value={newAddition.date} onChange={(e) => setNewAddition(p => ({...p, date: e.target.value}))} className={`${inputFieldClass} flex-1`} min={FY_START_DATE} max={asset.disposalDate || FY_END_DATE}/>
                                 <input type="number" value={newAddition.cost} onChange={(e) => setNewAddition(p => ({...p, cost: e.target.value}))} placeholder="Cost of Addition (₹)" className={`${inputFieldClass} flex-1`}/>
                                 {method === 'SLM' && (
@@ -438,7 +434,7 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, onClose }) => {
                                 )}
                                 <button onClick={handleAddAddition} disabled={!newAddition.date || !newAddition.cost || isAdditionDateInvalid} className="w-full sm:w-auto px-4 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition-colors flex-shrink-0 text-base shadow-md disabled:bg-indigo-400 disabled:cursor-not-allowed">Add</button>
                             </div>
-                            {isAdditionDateInvalid && <p className="text-xs text-red-600 mt-1 no-print">Addition date is invalid.</p>}
+                            {isAdditionDateInvalid && <p className="text-xs text-red-600 mt-1">Addition date is invalid.</p>}
                         </div>
 
                         <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
@@ -507,72 +503,6 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, onClose }) => {
         </div>
     );
 };
-
-const PrintAssetDetail = ({ asset, details, method }) => {
-    return (
-        <div className="print-section mb-8 page-break-before">
-            <h3 className="text-xl font-bold text-slate-800 mb-4 p-4 border-b border-slate-200">
-                {asset.name || 'Unnamed Asset'}
-            </h3>
-            <div className="p-4">
-                <div className="grid grid-cols-3 gap-4 mb-4">
-                    <div><strong>Asset Type:</strong> {asset.assetType.replace(/_/g, ' ')}</div>
-                    <div><strong>Method:</strong> {method}</div>
-                    <div><strong>Purchase Date:</strong> {new Date(asset.purchaseDate).toLocaleDateString('en-GB')}</div>
-                    <div><strong>Opening Gross Block:</strong> {formatCurrency(details.openingGrossBlock)}</div>
-                    <div><strong>Opening Accum. Dep:</strong> {formatCurrency(details.openingAccumulatedDepreciation)}</div>
-                    {method === 'SLM' && <div><strong>Residual Value:</strong> {formatCurrency(asset.residualValue)}</div>}
-                </div>
-
-                {asset.additions.length > 0 && (
-                    <div className="mb-4">
-                        <h4 className="font-bold mb-2">Additions:</h4>
-                        {asset.additions.map((add, i) => (
-                             <div key={i}>- Purchased on {new Date(add.date).toLocaleDateString('en-GB')} for {formatCurrency(add.cost)}</div>
-                        ))}
-                    </div>
-                )}
-                
-                {asset.disposalDate && (
-                    <div className="mb-4">
-                        <h4 className="font-bold mb-2">Disposal:</h4>
-                        <div>- Disposed on {new Date(asset.disposalDate).toLocaleDateString('en-GB')} for {formatCurrency(asset.saleValue)}</div>
-                    </div>
-                )}
-
-                <div className="border-t border-slate-200 pt-4">
-                    <h4 className="font-bold mb-2">Calculation Workings:</h4>
-                    <div className="space-y-2">
-                         {details.workings.map((item, index) => (
-                            <div key={index} className="flex justify-between items-start text-sm">
-                                <div className='pr-4'>
-                                    <p>{item.description}: <span className="text-xs text-slate-500">{item.calculation}</span></p>
-                                </div>
-                                <p className="font-medium whitespace-nowrap">{formatCurrency(item.amount)}</p>
-                            </div>
-                        ))}
-                    </div>
-                    <hr className="my-2" />
-                    <div className="flex justify-between font-bold">
-                        <span>Depreciation For The Year</span>
-                        <span>{formatCurrency(details.depreciationForYear)}</span>
-                    </div>
-                    {asset.disposalDate && (
-                        <div className={`flex justify-between font-bold ${details.profitOrLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            <span>{details.profitOrLoss >= 0 ? 'Profit on Sale' : 'Loss on Sale'}</span>
-                            <span>{formatCurrency(Math.abs(details.profitOrLoss))}</span>
-                        </div>
-                    )}
-                     <div className="flex justify-between font-bold text-green-700 mt-2">
-                        <span>Closing Net Block</span>
-                        <span>{formatCurrency(details.closingWDV)}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
-
 
 const SkeletonCard = () => (
     <div className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg border border-white/30 dark:border-slate-700/50 rounded-2xl shadow-lg p-4 mb-4 animate-pulse">
@@ -645,94 +575,342 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, children }) => {
     );
 };
 
+// --- START: New and Refactored Print Components ---
+
+/**
+ * Injects CSS rules specifically for printing the document.
+ */
 const PrintStyles = () => (
     <style>{`
-        @page {
-            size: landscape;
+        .print-only {
+            display: none;
         }
         @media print {
-            body {
+            @page {
+                size: landscape;
+                margin: 0.75in;
+            }
+
+            body, html {
+                background-color: #fff !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
+                height: auto;
+                font-size: 10pt;
             }
+
             .no-print {
                 display: none !important;
             }
-            .print-container {
-                display: block !important;
-                max-width: 100% !important;
-                padding: 0 !important;
-                margin: 0 !important;
-            }
-            .print-section {
-                box-shadow: none !important;
-                border: 1px solid #e2e8f0 !important;
-                margin-bottom: 1.5rem !important;
-                border-radius: 0 !important;
-                background-color: #fff !important;
-            }
-            main {
-                display: none !important;
-            }
+            
             .print-only {
                 display: block !important;
             }
-            .page-break-before {
+            
+            .print-header h1 {
+                font-size: 18pt;
+                font-weight: bold;
+                text-align: center;
+                margin-bottom: 4px;
+            }
+            .print-header p {
+                font-size: 12pt;
+                text-align: center;
+                margin-bottom: 2rem;
+            }
+
+            .print-section-title {
+                font-size: 14pt;
+                font-weight: bold;
+                margin-top: 2rem;
+                margin-bottom: 1rem;
+                border-bottom: 2px solid #ccc;
+                padding-bottom: 0.5rem;
+                page-break-after: avoid;
                 page-break-before: always;
             }
-            .summary-print-layout {
-                display: block !important;
+            
+            .print-section-title.first {
+                page-break-before: auto;
             }
+
+            .print-summary-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 1rem;
+            }
+            .print-summary-table th,
+            .print-summary-table td {
+                border: 1px solid #ccc;
+                padding: 6px 8px;
+                text-align: left;
+                font-size: 8pt;
+            }
+            .print-summary-table th {
+                background-color: #f2f2f2 !important;
+                font-weight: bold;
+            }
+            .print-summary-table td[align="right"],
+            .print-summary-table th[align="right"] {
+                text-align: right;
+            }
+            .print-summary-table tfoot {
+                font-weight: bold;
+                background-color: #f2f2f2 !important;
+            }
+
+            .print-asset-detail {
+                page-break-inside: avoid;
+                margin-bottom: 1.5rem;
+                border: 1px solid #ccc;
+                padding: 1rem;
+                border-radius: 8px;
+            }
+            
+            .print-asset-detail h4 {
+                 font-size: 12pt;
+                 font-weight: bold;
+                 margin-bottom: 0.75rem;
+                 border-bottom: 1px solid #eee;
+                 padding-bottom: 0.5rem;
+            }
+
+            .print-asset-header-grid {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 0.5rem 1.5rem;
+                margin-bottom: 1rem;
+            }
+             .print-asset-header-grid div {
+                font-size: 9pt;
+            }
+
+            .print-workings-table {
+                width: 100%;
+                margin-top: 1rem;
+                border-collapse: collapse;
+            }
+            .print-workings-table td {
+                padding: 4px 0;
+                vertical-align: top;
+                border-bottom: 1px dotted #ccc;
+            }
+             .print-workings-table tr:last-child td {
+                border-bottom: none;
+            }
+            .print-workings-table .calc-desc {
+                font-size: 9pt;
+            }
+            .print-workings-table .calc-string {
+                font-size: 8pt;
+                color: #555 !important;
+                padding-left: 1rem;
+            }
+            .print-workings-table .calc-amount {
+                text-align: right;
+                font-weight: bold;
+                white-space: nowrap;
+                padding-left: 1.5rem;
+            }
+
+            .print-final-summary {
+                margin-top: 1rem;
+                border-top: 2px solid #ccc;
+                padding-top: 0.75rem;
+            }
+            .print-final-summary .summary-row {
+                display: flex;
+                justify-content: space-between;
+                font-weight: bold;
+                margin-bottom: 0.25rem;
+                font-size: 10pt;
+            }
+            .print-final-summary .profit { color: #166534 !important; }
+            .print-final-summary .loss { color: #b91c1c !important; }
+            .print-final-summary .net-block { 
+                 background-color: #f0fdf4 !important;
+                 padding: 0.5rem;
+                 border-radius: 4px;
+                 margin-top: 0.5rem;
+            }
+
             * {
-                color: #000 !important;
-                background-color: transparent !important;
-                border-color: #e2e8f0 !important;
                 box-shadow: none !important;
+                text-shadow: none !important;
+                color-adjust: exact !important;
+                -webkit-print-color-adjust: exact !important;
             }
-             .recharts-legend-item-text, .recharts-text, .recharts-label {
-                 fill: #000 !important;
-             }
         }
     `}</style>
 );
 
-const SummaryReport = ({ calculationResults, onFilterChange, showToast, filterType, theme }) => {
+/**
+ * Renders the summary table for the print view.
+ */
+const PrintSummaryTable = ({ summaryData }) => {
+    return (
+        <>
+            <h2 className="print-section-title first">Asset Type Summary Schedule</h2>
+            <table className="print-summary-table">
+                <thead>
+                    <tr>
+                        <th>Asset Type</th>
+                        <th align="right">Op. Gross Block</th>
+                        <th align="right">Additions</th>
+                        <th align="right">Disposals</th>
+                        <th align="right">Cl. Gross Block</th>
+                        <th align="right">Op. Accum. Dep.</th>
+                        <th align="right">Dep. for Year</th>
+                        <th align="right">Cl. Accum. Dep.</th>
+                        <th align="right">Op. Net Block</th>
+                        <th align="right">Cl. Net Block</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {Object.values(summaryData.byType).map(typeData => (
+                        <tr key={typeData.internalName}>
+                            <td>{typeData.name}</td>
+                            <td align="right">{formatCurrency(typeData.openingGrossBlock)}</td>
+                            <td align="right">{formatCurrency(typeData.additions)}</td>
+                            <td align="right">{formatCurrency(typeData.disposalsCost)}</td>
+                            <td align="right">{formatCurrency(typeData.closingGrossBlock)}</td>
+                            <td align="right">{formatCurrency(typeData.openingAccumulatedDepreciation)}</td>
+                            <td align="right">{formatCurrency(typeData.depreciationForYear)}</td>
+                            <td align="right">{formatCurrency(typeData.closingAccumulatedDepreciation)}</td>
+                            <td align="right">{formatCurrency(typeData.openingNetBlock)}</td>
+                            <td align="right">{formatCurrency(typeData.closingNetBlock)}</td>
+                        </tr>
+                    ))}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td>TOTAL</td>
+                        <td align="right">{formatCurrency(summaryData.totals.openingGrossBlock)}</td>
+                        <td align="right">{formatCurrency(summaryData.totals.additions)}</td>
+                        <td align="right">{formatCurrency(summaryData.totals.disposalsCost)}</td>
+                        <td align="right">{formatCurrency(summaryData.totals.closingGrossBlock)}</td>
+                        <td align="right">{formatCurrency(summaryData.totals.openingAccumulatedDepreciation)}</td>
+                        <td align="right">{formatCurrency(summaryData.totals.depreciationForYear)}</td>
+                        <td align="right">{formatCurrency(summaryData.totals.closingAccumulatedDepreciation)}</td>
+                        <td align="right">{formatCurrency(summaryData.totals.openingNetBlock)}</td>
+                        <td align="right">{formatCurrency(summaryData.totals.closingNetBlock)}</td>
+                    </tr>
+                </tfoot>
+            </table>
+            <p style={{ fontSize: '8pt', color: '#555', marginTop: '1rem' }}>
+                <strong>Note:</strong> The calculations above are based on a single-asset accounting model as per Ind AS 16. For Income Tax purposes, where depreciation is calculated on a 'block of assets', please aggregate the results from this schedule manually.
+            </p>
+        </>
+    );
+};
+
+/**
+ * Renders a single asset's details in a print-friendly format.
+ */
+const PrintAssetDetail = ({ asset, details, method }) => {
+    return (
+        <div className="print-asset-detail">
+            <h4>{asset.name || 'Unnamed Asset'}</h4>
+            
+            <div className="print-asset-header-grid">
+                <div><strong>Asset Type:</strong> {asset.assetType ? asset.assetType.replace(/_/g, ' ') : 'N/A'}</div>
+                <div><strong>Method:</strong> {method}</div>
+                <div><strong>Orig. Purchase Date:</strong> {asset.purchaseDate ? new Date(asset.purchaseDate).toLocaleDateString('en-GB') : 'N/A'}</div>
+                {asset.disposalDate && <div><strong>Disposal Date:</strong> {new Date(asset.disposalDate).toLocaleDateString('en-GB')}</div>}
+                <div><strong>Opening Gross Block:</strong> {formatCurrency(details.openingGrossBlock)}</div>
+                <div><strong>Opening Accum. Dep:</strong> {formatCurrency(details.openingAccumulatedDepreciation)}</div>
+                {method === 'SLM' && <div><strong>Residual Value:</strong> {formatCurrency(asset.residualValue)}</div>}
+                {asset.disposalDate && <div><strong>Sale Value:</strong> {formatCurrency(asset.saleValue)}</div>}
+            </div>
+
+            {asset.additions.length > 0 && (
+                <div style={{marginBottom: '1rem'}}>
+                    <strong style={{fontSize: '9pt'}}>Additions:</strong>
+                    <ul style={{listStyle: 'disc', paddingLeft: '20px', fontSize: '9pt', margin: '0.25rem 0'}}>
+                        {asset.additions.map((add, i) => (
+                             <li key={i}>Purchased on {new Date(add.date).toLocaleDateString('en-GB')} for {formatCurrency(add.cost)}</li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+            
+            <div>
+                <strong style={{fontSize: '10pt'}}>Calculation Workings:</strong>
+                <table className="print-workings-table">
+                    <tbody>
+                        {details.workings.map((item, index) => (
+                        <tr key={index}>
+                            <td>
+                                <div className="calc-desc">{item.description}</div>
+                                <div className="calc-string">{item.calculation}</div>
+                            </td>
+                            <td className="calc-amount">{formatCurrency(item.amount)}</td>
+                        </tr>
+                        ))}
+                         {details.workings.length === 0 && (
+                             <tr><td>No depreciation calculated for the year.</td><td></td></tr>
+                         )}
+                    </tbody>
+                </table>
+            </div>
+
+            <div className="print-final-summary">
+                <div className="summary-row">
+                    <span>Depreciation For The Year</span>
+                    <span>{formatCurrency(details.depreciationForYear)}</span>
+                </div>
+                {asset.disposalDate && details.profitOrLoss !== 0 && (
+                    <div className={`summary-row ${details.profitOrLoss >= 0 ? 'profit' : 'loss'}`}>
+                        <span>{details.profitOrLoss >= 0 ? 'Profit on Sale' : 'Loss on Sale'}</span>
+                        <span>{formatCurrency(Math.abs(details.profitOrLoss))}</span>
+                    </div>
+                )}
+                <div className="summary-row net-block">
+                    <span>Closing Net Block</span>
+                    <span>{formatCurrency(details.closingWDV)}</span>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+/**
+ * The main container for all printable content.
+ */
+const PrintLayout = ({ calculationResults, method, FY_LABEL, summaryData }) => {
+    return (
+        <div className="print-container">
+            <header className="print-header">
+                <h1>Depreciation Calculator</h1>
+                <p>For the Financial Year {FY_LABEL}</p>
+            </header>
+            
+            <section>
+                <PrintSummaryTable summaryData={summaryData} />
+            </section>
+            
+            {calculationResults.length > 0 && (
+               <section>
+                    <h2 className="print-section-title">Asset Details</h2>
+                    {calculationResults.map(result => (
+                        <PrintAssetDetail 
+                            key={`print-${result.id}`}
+                            asset={result.asset}
+                            details={result.details}
+                            method={method}
+                        />
+                    ))}
+               </section>
+            )}
+        </div>
+    );
+};
+// --- END: New and Refactored Print Components ---
+
+
+const SummaryReport = ({ summaryData, onFilterChange, showToast, filterType, theme }) => {
     const [isExpanded, setIsExpanded] = useState(true);
-
-    const summaryData = useMemo(() => {
-        const summary = { byType: {} };
-        calculationResults.forEach(({asset, details}) => {
-            const type = asset.assetType || 'unclassified';
-            if (!summary.byType[type]) {
-                summary.byType[type] = { 
-                    name: type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-                    internalName: type, 
-                    openingGrossBlock: 0, additions: 0, disposalsCost: 0, closingGrossBlock: 0,
-                    openingAccumulatedDepreciation: 0, openingNetBlock: 0, depreciationForYear: 0,
-                    closingAccumulatedDepreciation: 0, closingNetBlock: 0 
-                };
-            }
-            const calc = details;
-            summary.byType[type].openingGrossBlock += calc.openingGrossBlock;
-            summary.byType[type].additions += calc.grossBlockAdditions;
-            summary.byType[type].disposalsCost += calc.disposalsCost;
-            summary.byType[type].closingGrossBlock += calc.closingGrossBlock;
-            summary.byType[type].openingAccumulatedDepreciation += calc.openingAccumulatedDepreciation;
-            summary.byType[type].openingNetBlock += (calc.openingGrossBlock - calc.openingAccumulatedDepreciation);
-            summary.byType[type].depreciationForYear += calc.depreciationForYear;
-            summary.byType[type].closingAccumulatedDepreciation += calc.closingAccumulatedDepreciation;
-            summary.byType[type].closingNetBlock += calc.closingWDV;
-        });
-        const totals = Object.values(summary.byType).reduce((acc, curr) => {
-            Object.keys(acc).forEach(key => {
-                if (typeof acc[key] === 'number' && key !== 'internalName') acc[key] += curr[key];
-            });
-            return acc;
-        }, { openingGrossBlock: 0, additions: 0, disposalsCost: 0, closingGrossBlock: 0, openingAccumulatedDepreciation: 0, openingNetBlock: 0, depreciationForYear: 0, closingAccumulatedDepreciation: 0, closingNetBlock: 0 });
-        summary.totals = totals;
-        return summary;
-    }, [calculationResults]);
-
+    
     const chartData = useMemo(() => {
         const colors = ['#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#f43f5e', '#64748b'];
         return Object.values(summaryData.byType).map((typeData, index) => ({
@@ -748,9 +926,17 @@ const SummaryReport = ({ calculationResults, onFilterChange, showToast, filterTy
            showToast("Export feature unavailable. Please check your internet connection and refresh.");
            return;
        }
-       const rows = Object.values(summaryData.byType).map(item => Object.fromEntries(Object.entries(item).map(([k,v]) => [k, typeof v === 'number' ? v.toFixed(2) : v])));
-       rows.push(Object.fromEntries(Object.entries(summaryData.totals).map(([k,v]) => [k, typeof v === 'number' ? v.toFixed(2) : v])));
-       const csv = window.Papa.unparse(rows);
+       const header = ["Asset Type", "Op. Gross Block", "Additions", "Disposals", "Cl. Gross Block", "Op. Accum. Dep.", "Dep. for Year", "Cl. Accum. Dep.", "Op. Net Block", "Cl. Net Block"];
+       const rows = Object.values(summaryData.byType).map(item => ([
+            item.name, item.openingGrossBlock, item.additions, item.disposalsCost, item.closingGrossBlock,
+            item.openingAccumulatedDepreciation, item.depreciationForYear, item.closingAccumulatedDepreciation,
+            item.openingNetBlock, item.closingNetBlock
+       ]));
+       
+       const totalsRow = ["TOTAL", summaryData.totals.openingGrossBlock, summaryData.totals.additions, summaryData.totals.disposalsCost, summaryData.totals.closingGrossBlock, summaryData.totals.openingAccumulatedDepreciation, summaryData.totals.depreciationForYear, summaryData.totals.closingAccumulatedDepreciation, summaryData.totals.openingNetBlock, summaryData.totals.closingNetBlock];
+
+       const csv = window.Papa.unparse({ fields: header, data: [...rows, totalsRow] });
+
        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
        const link = document.createElement("a");
        const url = URL.createObjectURL(blob);
@@ -774,16 +960,17 @@ const SummaryReport = ({ calculationResults, onFilterChange, showToast, filterTy
         contentStyle: { 
             backgroundColor: theme === 'dark' ? '#1e293b' : '#ffffff',
             borderColor: theme === 'dark' ? '#334155' : '#cccccc',
+            borderRadius: '0.75rem'
         },
         itemStyle: { color: legendColor },
         labelStyle: { color: legendColor }
     };
 
     return (
-      <div className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg border border-white/30 dark:border-slate-700/50 rounded-2xl shadow-lg overflow-hidden mb-8 print-section">
+      <div className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg border border-white/30 dark:border-slate-700/50 rounded-2xl shadow-lg overflow-hidden mb-8">
           <div className="p-4 md:p-6 cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-800/50 flex justify-between items-center" onClick={() => setIsExpanded(!isExpanded)}>
               <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Summary & Reporting</h2>
-              <div className="flex items-center gap-4 no-print">
+              <div className="flex items-center gap-4">
                   <button onClick={(e) => {e.stopPropagation(); window.print()}} className="px-4 py-2 bg-slate-600 text-white font-semibold rounded-lg shadow-sm hover:bg-slate-700 transition-colors text-sm">Print</button>
                   <button onClick={(e) => {e.stopPropagation(); handleExport()}} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-sm hover:bg-blue-700 transition-colors text-sm">Export CSV</button>
                   <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 text-slate-400 dark:text-slate-500 transform transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
@@ -791,7 +978,7 @@ const SummaryReport = ({ calculationResults, onFilterChange, showToast, filterTy
           </div>
           {isExpanded && (
               <div id="summary-section-printable-content" className="p-4 md:p-6 border-t border-slate-200 dark:border-slate-700/50">
-                  <div className={`grid grid-cols-1 ${hasChartData ? 'xl:grid-cols-3' : ''} gap-8 summary-print-layout`}>
+                  <div className={`grid grid-cols-1 ${hasChartData ? 'xl:grid-cols-3' : ''} gap-8`}>
                       <div className="xl:col-span-2">
                           <h3 className="font-bold text-lg text-slate-700 dark:text-slate-200 mb-4">Asset Type Summary Schedule</h3>
                           <div className="overflow-x-auto">
@@ -816,7 +1003,7 @@ const SummaryReport = ({ calculationResults, onFilterChange, showToast, filterTy
                                             <td className="p-2 font-medium text-slate-800 dark:text-slate-100">{typeData.name}</td>
                                             <td className="p-2 text-right text-slate-600 dark:text-slate-400">{formatCurrency(typeData.openingGrossBlock)}</td>
                                             <td className="p-2 text-right text-slate-600 dark:text-slate-400">{formatCurrency(typeData.additions)}</td>
-                                            <td className="p-2 text-right text-slate-600 dark:text-slate-400">{formatCurrency(-typeData.disposalsCost)}</td>
+                                            <td className="p-2 text-right text-slate-600 dark:text-slate-400">{formatCurrency(typeData.disposalsCost)}</td>
                                             <td className="p-2 text-right font-semibold text-slate-800 dark:text-slate-200">{formatCurrency(typeData.closingGrossBlock)}</td>
                                             <td className="p-2 text-right text-slate-600 dark:text-slate-400">{formatCurrency(typeData.openingAccumulatedDepreciation)}</td>
                                             <td className="p-2 text-right text-blue-600 dark:text-blue-400 font-semibold">{formatCurrency(typeData.depreciationForYear)}</td>
@@ -831,7 +1018,7 @@ const SummaryReport = ({ calculationResults, onFilterChange, showToast, filterTy
                                         <td className="p-2 rounded-bl-lg">TOTAL</td>
                                         <td className="p-2 text-right">{formatCurrency(summaryData.totals.openingGrossBlock)}</td>
                                         <td className="p-2 text-right">{formatCurrency(summaryData.totals.additions)}</td>
-                                        <td className="p-2 text-right">{formatCurrency(-summaryData.totals.disposalsCost)}</td>
+                                        <td className="p-2 text-right">{formatCurrency(summaryData.totals.disposalsCost)}</td>
                                         <td className="p-2 text-right">{formatCurrency(summaryData.totals.closingGrossBlock)}</td>
                                         <td className="p-2 text-right">{formatCurrency(summaryData.totals.openingAccumulatedDepreciation)}</td>
                                         <td className="p-2 text-right text-blue-700 dark:text-blue-400">{formatCurrency(summaryData.totals.depreciationForYear)}</td>
@@ -849,7 +1036,7 @@ const SummaryReport = ({ calculationResults, onFilterChange, showToast, filterTy
                            </div>
                       </div>
                        {hasChartData && (
-                           <div className="min-h-[300px] chart-container flex flex-col items-center no-print">
+                           <div className="min-h-[300px] chart-container flex flex-col items-center">
                               <h3 className="font-bold text-lg text-slate-700 dark:text-slate-200 mb-4 text-center">Depreciation by Asset Type</h3>
                                <ResponsiveContainer width="100%" height={300}>
                                   <PieChart>
@@ -975,9 +1162,8 @@ export default function App() {
         setAssets(newAssets);
         setSelectedAssetId(newId);
         setFilterType(null);
-        saveState({ assets: newAssets, method, theme });
         showToast("Asset added successfully!");
-    }, [assets, method, theme, showToast, saveState]);
+    }, [assets, showToast]);
     
     const updateAsset = useCallback((id, updatedData) => {
         setAssets(prev => prev.map(asset => (asset.id === id ? updatedData : asset)));
@@ -998,12 +1184,11 @@ export default function App() {
       if(selectedCount > 0){
           const newAssets = assets.filter(asset => !asset.isSelected);
           setAssets(newAssets);
-          saveState({ assets: newAssets, method, theme });
           showToast(`${selectedCount} asset(s) deleted.`);
           setIsDeleteModalOpen(false);
           setSelectedAssetId(null);
       }
-    }, [assets, method, theme, showToast, saveState]);
+    }, [assets, showToast]);
 
     const handleMethodChange = (newMethod) => {
         if (method !== newMethod && assets.some(a => a.openingGrossBlock || a.additions.length > 0)) {
@@ -1019,6 +1204,42 @@ export default function App() {
             details: calculateAssetDetails(asset, method)
         }));
     }, [assets, method]);
+
+    const summaryData = useMemo(() => {
+        const summary = { byType: {} };
+        calculationResults.forEach(({asset, details}) => {
+            const type = asset.assetType || 'unclassified';
+            if (!summary.byType[type]) {
+                summary.byType[type] = { 
+                    name: type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                    internalName: type, 
+                    openingGrossBlock: 0, additions: 0, disposalsCost: 0, closingGrossBlock: 0,
+                    openingAccumulatedDepreciation: 0, openingNetBlock: 0, depreciationForYear: 0,
+                    closingAccumulatedDepreciation: 0, closingNetBlock: 0 
+                };
+            }
+            const calc = details;
+            summary.byType[type].openingGrossBlock += calc.openingGrossBlock;
+            summary.byType[type].additions += calc.grossBlockAdditions;
+            summary.byType[type].disposalsCost += calc.disposalsCost;
+            summary.byType[type].closingGrossBlock += calc.closingGrossBlock;
+            summary.byType[type].openingAccumulatedDepreciation += calc.openingAccumulatedDepreciation;
+            summary.byType[type].openingNetBlock += (calc.openingGrossBlock - calc.openingAccumulatedDepreciation);
+            summary.byType[type].depreciationForYear += calc.depreciationForYear;
+            summary.byType[type].closingAccumulatedDepreciation += calc.closingAccumulatedDepreciation;
+            summary.byType[type].closingNetBlock += calc.closingWDV;
+        });
+        const totals = Object.values(summary.byType).reduce((acc, curr) => {
+            Object.keys(acc).forEach(key => {
+                if (typeof acc[key] === 'number' && key !== 'name' && key !== 'internalName') {
+                    acc[key] += curr[key];
+                }
+            });
+            return acc;
+        }, { openingGrossBlock: 0, additions: 0, disposalsCost: 0, closingGrossBlock: 0, openingAccumulatedDepreciation: 0, openingNetBlock: 0, depreciationForYear: 0, closingAccumulatedDepreciation: 0, closingNetBlock: 0 });
+        summary.totals = totals;
+        return summary;
+    }, [calculationResults]);
 
     const filteredAssets = useMemo(() => {
         if (!filterType) {
@@ -1036,7 +1257,17 @@ export default function App() {
     return (
         <div className={theme}>
             <PrintStyles />
-            <div className="bg-gradient-to-br from-slate-50 to-slate-200 dark:from-slate-900 dark:to-slate-950 min-h-screen text-slate-800 font-sans print-container">
+            
+            <div className="print-only">
+                 <PrintLayout 
+                    calculationResults={calculationResults}
+                    method={method}
+                    FY_LABEL={FY_LABEL}
+                    summaryData={summaryData}
+                />
+            </div>
+            
+            <div className="no-print bg-gradient-to-br from-slate-50 to-slate-200 dark:from-slate-900 dark:to-slate-950 min-h-screen text-slate-800 font-sans">
                 <div className="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
                     <Toast message={toast.message} show={toast.show} onClose={() => setToast({ ...toast, show: false })} />
                     <ConfirmationModal
@@ -1048,7 +1279,7 @@ export default function App() {
                         Are you sure you want to delete the selected {selectedAssetCount} asset(s)? This action cannot be undone.
                     </ConfirmationModal>
 
-                    <header className="mb-8 relative flex flex-col sm:justify-center no-print">
+                    <header className="mb-8 relative flex flex-col sm:justify-center">
                         <div className="w-full flex justify-end mb-4 sm:absolute sm:top-0 sm:right-0 sm:mb-0">
                            <button onClick={toggleTheme} className="px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold rounded-lg shadow-sm hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors text-sm">
                                 {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
@@ -1060,9 +1291,9 @@ export default function App() {
                         </div>
                     </header>
                     
-                    {isLoading ? <SkeletonSummary /> : <SummaryReport calculationResults={calculationResults} onFilterChange={setFilterType} showToast={showToast} filterType={filterType} theme={theme}/>}
+                    {isLoading ? <SkeletonSummary /> : <SummaryReport summaryData={summaryData} onFilterChange={setFilterType} showToast={showToast} filterType={filterType} theme={theme}/>}
 
-                    <div className="max-w-lg mx-auto mb-6 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg p-2 rounded-xl flex space-x-2 border border-white/30 dark:border-slate-700/50 shadow-sm no-print">
+                    <div className="max-w-lg mx-auto mb-6 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg p-2 rounded-xl flex space-x-2 border border-white/30 dark:border-slate-700/50 shadow-sm">
                         <button onClick={() => handleMethodChange('WDV')} className={`w-1/2 py-2 px-4 rounded-lg text-sm font-semibold transition-all duration-300 ${method === 'WDV' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'}`}>Written Down Value (WDV)</button>
                         <button onClick={() => handleMethodChange('SLM')} className={`w-1/2 py-2 px-4 rounded-lg text-sm font-semibold transition-all duration-300 ${method === 'SLM' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'}`}>Straight-Line Method (SLM)</button>
                     </div>
@@ -1072,18 +1303,18 @@ export default function App() {
                         <Tooltip text="Each card represents a single asset for financial reporting (per Ind AS 16). For Income Tax block calculations, aggregate results manually.">
                             <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center">
                                 Assets
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-2 text-slate-400 no-print" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                             </h2>
                         </Tooltip>
                         {filterType && !isLoading && (
-                            <button onClick={() => setFilterType(null)} className="px-3 py-1 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 text-sm font-semibold rounded-lg shadow-sm hover:bg-indigo-200 dark:hover:bg-indigo-900 transition-colors flex items-center gap-1 no-print">
+                            <button onClick={() => setFilterType(null)} className="px-3 py-1 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 text-sm font-semibold rounded-lg shadow-sm hover:bg-indigo-200 dark:hover:bg-indigo-900 transition-colors flex items-center gap-1">
                                 <span>Filtering by: {filterType.replace(/_/g, ' ')}</span>
                                 <span className="font-bold">&times;</span>
                             </button>
                         )}
                       </div>
                        {selectedAssetCount > 0 && (
-                          <button onClick={handleDeleteRequest} className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-sm hover:bg-red-700 transition-colors no-print">
+                          <button onClick={handleDeleteRequest} className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-sm hover:bg-red-700 transition-colors">
                             Delete Selected ({selectedAssetCount})
                           </button>
                        )}
@@ -1120,28 +1351,7 @@ export default function App() {
                         </div>
                     </main>
 
-                    <div className="hidden print-only">
-                        <div className="text-center mb-8">
-                           <h1 className="text-2xl font-bold">Depreciation Calculator</h1>
-                           <p className="text-md">For the Financial Year {FY_LABEL}</p>
-                        </div>
-                        {calculationResults.length > 0 && (
-                           <div className="page-break-before">
-                                <h2 className="text-xl font-bold mb-4">Asset Details</h2>
-                                {calculationResults.map(result => (
-                                    <PrintAssetDetail 
-                                        key={`print-${result.id}`}
-                                        asset={result.asset}
-                                        details={result.details}
-                                        method={method}
-                                    />
-                                ))}
-                           </div>
-                        )}
-                    </div>
-
-
-                    <button onClick={addAsset} className="fixed bottom-6 right-6 md:bottom-8 md:right-8 h-16 w-16 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center justify-center no-print" title="Add New Asset" aria-label="Add new asset">
+                    <button onClick={addAsset} className="fixed bottom-6 right-6 md:bottom-8 md:right-8 h-16 w-16 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center justify-center" title="Add New Asset" aria-label="Add new asset">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                     </button>
                     
