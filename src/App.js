@@ -645,7 +645,6 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, children }) => {
     );
 };
 
-// [NEW] Updated print styles to force light mode and print the pie chart
 const PrintStyles = () => (
     <style>{`
         @page {
@@ -682,22 +681,13 @@ const PrintStyles = () => (
                 page-break-before: always;
             }
             .summary-print-layout {
-                display: flex !important;
-                flex-direction: row !important;
-                gap: 2rem !important;
-            }
-            .summary-print-layout > div {
-                flex: 1;
-            }
-            .chart-container-print {
                 display: block !important;
-                width: 300px !important;
-                height: 300px !important;
             }
             * {
                 color: #000 !important;
-                background-color: #fff !important;
+                background-color: transparent !important;
                 border-color: #e2e8f0 !important;
+                box-shadow: none !important;
             }
              .recharts-legend-item-text, .recharts-text, .recharts-label {
                  fill: #000 !important;
@@ -801,7 +791,7 @@ const SummaryReport = ({ calculationResults, onFilterChange, showToast, filterTy
           </div>
           {isExpanded && (
               <div id="summary-section-printable-content" className="p-4 md:p-6 border-t border-slate-200 dark:border-slate-700/50">
-                  <div className={`grid grid-cols-1 xl:grid-cols-3 gap-8 summary-print-layout`}>
+                  <div className={`grid grid-cols-1 ${hasChartData ? 'xl:grid-cols-3' : ''} gap-8 summary-print-layout`}>
                       <div className="xl:col-span-2">
                           <h3 className="font-bold text-lg text-slate-700 dark:text-slate-200 mb-4">Asset Type Summary Schedule</h3>
                           <div className="overflow-x-auto">
@@ -859,7 +849,7 @@ const SummaryReport = ({ calculationResults, onFilterChange, showToast, filterTy
                            </div>
                       </div>
                        {hasChartData && (
-                           <div className="min-h-[300px] chart-container-print flex flex-col items-center">
+                           <div className="min-h-[300px] chart-container flex flex-col items-center no-print">
                               <h3 className="font-bold text-lg text-slate-700 dark:text-slate-200 mb-4 text-center">Depreciation by Asset Type</h3>
                                <ResponsiveContainer width="100%" height={300}>
                                   <PieChart>
