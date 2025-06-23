@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { PieChart, Pie, Cell, Tooltip as ChartTooltip, ResponsiveContainer, Legend } from 'recharts';
-// PapaParse is loaded via a script tag in the App component to avoid import errors.
+// PapaParse and React-Beautiful-DND are loaded via script tags in the App component to avoid import errors.
 
 // --- Config & Data ---
 const FINANCIAL_YEAR_CONFIG = {
@@ -249,26 +249,24 @@ const Tooltip = ({ text, children }) => (
     </div>
 );
 
-const AssetCard = ({ asset, details, onSelect, onEdit, animationDelay }) => {
+const AssetCard = ({ asset, details, onSelect, onEdit, isDragging }) => {
     return (
-        <div style={{ transitionDelay: `${animationDelay}ms` }} className="group asset-card-enter">
-            <div
-                onClick={onEdit}
-                className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg border border-white/30 dark:border-slate-700/50 rounded-2xl shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 cursor-pointer"
-            >
-                <div className="p-5 sm:p-4">
-                    <div className="flex justify-between items-start gap-4">
-                        <div className="flex items-center flex-shrink-0 mr-4">
-                            <input type="checkbox" checked={asset.isSelected} onChange={(e) => onSelect(asset.id, e.target.checked)} onClick={(e) => e.stopPropagation()} className="h-6 w-6 rounded border-slate-400 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 cursor-pointer"/>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-lg md:text-lg font-bold text-slate-800 dark:text-slate-100 truncate">{asset.name || 'Unnamed Asset'}</p>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 capitalize">{asset.assetType ? asset.assetType.replace(/_/g, ' ') : 'No type selected'}</p>
-                        </div>
-                        <div className="text-right flex-shrink-0 ml-4">
-                            <p className="text-xl md:text-lg font-bold text-indigo-600 dark:text-indigo-400">{formatCurrency(details.depreciationForYear)}</p>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Depreciation</p>
-                        </div>
+        <div
+            onClick={onEdit}
+            className={`bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg border border-white/30 dark:border-slate-700/50 rounded-2xl shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 cursor-pointer ${isDragging ? 'opacity-50 scale-105 shadow-2xl' : ''}`}
+        >
+            <div className="p-5 sm:p-4">
+                <div className="flex justify-between items-start gap-4">
+                    <div className="flex items-center flex-shrink-0 mr-4">
+                        <input type="checkbox" checked={asset.isSelected} onChange={(e) => onSelect(asset.id, e.target.checked)} onClick={(e) => e.stopPropagation()} className="h-6 w-6 rounded border-slate-400 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 cursor-pointer"/>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-lg md:text-lg font-bold text-slate-800 dark:text-slate-100 truncate">{asset.name || 'Unnamed Asset'}</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 capitalize">{asset.assetType ? asset.assetType.replace(/_/g, ' ') : 'No type selected'}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0 ml-4">
+                        <p className="text-xl md:text-lg font-bold text-indigo-600 dark:text-indigo-400">{formatCurrency(details.depreciationForYear)}</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Depreciation</p>
                     </div>
                 </div>
             </div>
@@ -541,19 +539,22 @@ const SkeletonSummary = () => (
 );
 
 
-const Toast = ({ message, show, onClose }) => {
+const Toast = ({ message, show, onClose, onUndo }) => {
     useEffect(() => {
         if (show) {
             const timer = setTimeout(() => {
                 onClose();
-            }, 3000);
+            }, 5000); // Increased time to allow for Undo
             return () => clearTimeout(timer);
         }
     }, [show, onClose]);
 
     return (
-        <div className={`fixed bottom-5 right-5 bg-slate-800 text-white px-6 py-3 rounded-lg shadow-lg transform transition-all duration-300 ease-in-out z-50 ${show ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
-            {message}
+        <div className={`fixed bottom-5 right-5 bg-slate-800 text-white px-6 py-3 rounded-lg shadow-lg transform transition-all duration-300 ease-in-out z-50 flex items-center justify-between gap-4 ${show ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
+            <span>{message}</span>
+            {onUndo && (
+                <button onClick={onUndo} className="font-bold uppercase text-sm text-indigo-300 hover:text-indigo-200">Undo</button>
+            )}
         </div>
     );
 };
@@ -939,18 +940,26 @@ export default function App() {
     const [method, setMethod] = useState('WDV');
     const [assets, setAssets] = useState([]);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [toast, setToast] = useState({ message: '', show: false });
+    const [toast, setToast] = useState({ message: '', show: false, onUndo: null });
+    const [lastDeleted, setLastDeleted] = useState(null);
     const [filterType, setFilterType] = useState(null);
     const [selectedAssetId, setSelectedAssetId] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [dndComponents, setDndComponents] = useState(null);
+
+    const { DragDropContext, Droppable, Draggable } = dndComponents || {};
 
     const debouncedAssets = useDebounce(assets, 250);
     const debouncedMethod = useDebounce(method, 250);
     const debouncedTheme = useDebounce(theme, 250);
 
-    const showToast = useCallback((message) => {
-        setToast({ message, show: true });
+    const showToast = useCallback((message, onUndo = null) => {
+        setToast({ message, show: true, onUndo });
     },[]);
+    
+    const hideToast = useCallback(() => {
+        setToast(prev => ({ ...prev, show: false }));
+    }, []);
     
     const saveState = useCallback((stateToSave) => {
         try {
@@ -966,20 +975,34 @@ export default function App() {
     }, [showToast]);
 
     useEffect(() => {
-        const scriptId = 'papaparse-script';
-        if (document.getElementById(scriptId) || window.Papa) return;
-        const script = document.createElement('script');
-        script.id = scriptId;
-        script.src = "https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js";
-        script.async = true;
-        script.onload = () => console.log('PapaParse loaded');
-        script.onerror = () => showToast("Export feature unavailable. Please check your internet connection and refresh.");
-        document.head.appendChild(script);
-        return () => {
-            const el = document.getElementById(scriptId);
-            if(el) document.head.removeChild(el);
-        };
-    }, [showToast]);
+        const dndScriptId = 'react-beautiful-dnd-script';
+        if (!document.getElementById(dndScriptId)) {
+            const script = document.createElement('script');
+            script.id = dndScriptId;
+            script.src = "https://cdnjs.cloudflare.com/ajax/libs/react-beautiful-dnd/13.1.1/react-beautiful-dnd.min.js";
+            script.async = true;
+            script.onload = () => {
+                if(window.ReactBeautifulDnd) {
+                    console.log('React Beautiful DND loaded');
+                    setDndComponents(window.ReactBeautifulDnd);
+                }
+            };
+            document.head.appendChild(script);
+        } else if (window.ReactBeautifulDnd && !dndComponents) {
+             setDndComponents(window.ReactBeautifulDnd);
+        }
+
+        const papaScriptId = 'papaparse-script';
+        if (!document.getElementById(papaScriptId)) {
+            const script = document.createElement('script');
+            script.id = papaScriptId;
+            script.src = "https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js";
+            script.async = true;
+            script.onload = () => console.log('PapaParse loaded');
+            script.onerror = () => showToast("Export feature unavailable. Please check your internet connection and refresh.");
+            document.head.appendChild(script);
+        }
+    }, [showToast, dndComponents]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -993,11 +1016,11 @@ export default function App() {
                     setAssets(savedAssets.map(a => ({...a, isSelected: false, isNew: false })) || []);
                     setMethod(savedMethod || 'WDV');
                 } else {
-                     setAssets([]); // Start with an empty list for the new empty state
+                     setAssets([]); 
                 }
             } catch (error) {
                 console.error("Failed to load state from localStorage", error);
-                 setAssets([]); // Default to empty on error
+                 setAssets([]);
             }
             setIsLoading(false);
         }, 1000); 
@@ -1043,15 +1066,23 @@ export default function App() {
     };
 
     const handleConfirmDelete = useCallback(() => {
-      const selectedCount = assets.filter(a => a.isSelected).length;
-      if(selectedCount > 0){
-          const newAssets = assets.filter(asset => !asset.isSelected);
-          setAssets(newAssets);
-          showToast(`${selectedCount} asset(s) deleted.`);
-          setIsDeleteModalOpen(false);
-          setSelectedAssetId(null);
-      }
+      const originalAssets = [...assets];
+      const assetsToDelete = assets.filter(a => a.isSelected);
+      const newAssets = assets.filter(asset => !asset.isSelected);
+      
+      setLastDeleted({ assets: assetsToDelete, originalState: originalAssets });
+      setAssets(newAssets);
+      setIsDeleteModalOpen(false);
+      setSelectedAssetId(null);
+      
+      showToast(`${assetsToDelete.length} asset(s) deleted.`, () => handleUndoDelete(originalAssets));
     }, [assets, showToast]);
+    
+    const handleUndoDelete = (originalAssets) => {
+        setAssets(originalAssets);
+        hideToast();
+        showToast("Deletion undone.");
+    };
 
     const handleMethodChange = (newMethod) => {
         if (method !== newMethod && assets.some(a => a.openingGrossBlock || a.additions.length > 0)) {
@@ -1104,18 +1135,24 @@ export default function App() {
         return summary;
     }, [calculationResults]);
 
-    const filteredAssets = useMemo(() => {
+    const filteredAssetResults = useMemo(() => {
         let results = calculationResults;
         if (filterType) {
             results = results.filter(result => result.asset.assetType === filterType);
         }
         if (searchTerm) {
+            const lowercasedFilter = searchTerm.toLowerCase();
             results = results.filter(result => 
-                result.asset.name.toLowerCase().includes(searchTerm.toLowerCase())
+                result.asset.name.toLowerCase().includes(lowercasedFilter)
             );
         }
         return results;
     }, [calculationResults, filterType, searchTerm]);
+    
+    // Create a map for quick lookups
+    const filteredAssetIds = useMemo(() => new Set(filteredAssetResults.map(r => r.id)), [filteredAssetResults]);
+    // The assets to be rendered are the original assets, but filtered and ordered for display
+    const assetsToDisplay = useMemo(() => assets.filter(a => filteredAssetIds.has(a.id)), [assets, filteredAssetIds]);
 
     const selectedAssetCount = useMemo(() => assets.filter(a => a.isSelected).length, [assets]);
 
@@ -1124,14 +1161,12 @@ export default function App() {
     }, [selectedAssetId, calculationResults]);
     
     const allVisibleSelected = useMemo(() => {
-        const visibleIds = new Set(filteredAssets.map(a => a.id));
-        if (visibleIds.size === 0) return false;
-        const selectedVisible = assets.filter(a => a.isSelected && visibleIds.has(a.id));
-        return selectedVisible.length === visibleIds.size;
-    }, [assets, filteredAssets]);
+        if (assetsToDisplay.length === 0) return false;
+        return assetsToDisplay.every(a => a.isSelected);
+    }, [assetsToDisplay]);
 
     const handleSelectAll = useCallback(() => {
-        const visibleIds = new Set(filteredAssets.map(a => a.id));
+        const visibleIds = new Set(assetsToDisplay.map(a => a.id));
         const shouldSelectAll = !allVisibleSelected;
         setAssets(prevAssets => 
             prevAssets.map(asset => {
@@ -1141,7 +1176,74 @@ export default function App() {
                 return asset;
             })
         );
-    }, [filteredAssets, allVisibleSelected]);
+    }, [assetsToDisplay, allVisibleSelected]);
+
+    const onDragEnd = (result) => {
+        const { destination, source } = result;
+        if (!destination) return;
+        if (destination.droppableId === source.droppableId && destination.index === source.index) return;
+        
+        const newAssets = Array.from(assets);
+        const [reorderedItem] = newAssets.splice(source.index, 1);
+        newAssets.splice(destination.index, 0, reorderedItem);
+
+        setAssets(newAssets);
+    };
+
+    const isFiltered = searchTerm || filterType;
+    
+    const DraggableAssetList = dndComponents ? (
+        <DragDropContext onDragEnd={onDragEnd}>
+            <Droppable droppableId="assets">
+                {(provided) => (
+                    <div 
+                        {...provided.droppableProps}
+                        ref={provided.innerRef}
+                        className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                    >
+                        {assets.map((asset, index) => {
+                            const result = calculationResults.find(r => r.id === asset.id);
+                            if (!result) return null;
+                            return (
+                                <Draggable key={result.id} draggableId={String(result.id)} index={index}>
+                                    {(provided, snapshot) => (
+                                        <div
+                                            ref={provided.innerRef}
+                                            {...provided.draggableProps}
+                                            {...provided.dragHandleProps}
+                                        >
+                                            <AssetCard 
+                                                asset={result.asset}
+                                                details={result.details}
+                                                onSelect={handleSelectAsset}
+                                                onEdit={() => setSelectedAssetId(result.id)}
+                                                isDragging={snapshot.isDragging}
+                                            />
+                                        </div>
+                                    )}
+                                </Draggable>
+                            );
+                        })}
+                        {provided.placeholder}
+                    </div>
+                )}
+            </Droppable>
+        </DragDropContext>
+    ) : null;
+
+    const NonDraggableAssetList = (
+         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredAssetResults.map((result, index) => 
+                <AssetCard 
+                    key={result.id} 
+                    asset={result.asset}
+                    details={result.details}
+                    onSelect={handleSelectAsset}
+                    onEdit={() => setSelectedAssetId(result.id)}
+                />
+            )}
+        </div>
+    );
 
     return (
         <div className={theme}>
@@ -1158,7 +1260,12 @@ export default function App() {
             
             <div className="no-print bg-gradient-to-br from-slate-50 to-slate-200 dark:from-slate-900 dark:to-slate-950 min-h-screen text-slate-800 font-sans">
                 <div className="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
-                    <Toast message={toast.message} show={toast.show} onClose={() => setToast({ ...toast, show: false })} />
+                    <Toast 
+                        message={toast.message} 
+                        show={toast.show} 
+                        onClose={hideToast}
+                        onUndo={toast.onUndo}
+                    />
                     <ConfirmationModal
                         isOpen={isDeleteModalOpen}
                         onClose={() => setIsDeleteModalOpen(false)}
@@ -1222,31 +1329,23 @@ export default function App() {
                            </div>
                         </div>
 
-                        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {isLoading ? (
-                                [...Array(3)].map((_, i) => <SkeletonCard key={i} />)
-                            ) : assets.length === 0 ? (
-                                <div className="md:col-span-2 lg:col-span-3">
-                                   <EmptyState addAsset={addAsset} />
-                                </div>
-                            ) : filteredAssets.length === 0 ? (
-                                <div className="md:col-span-2 lg:col-span-3 text-center p-8 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg rounded-2xl shadow-lg">
-                                    <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200">No assets match your search or filter.</h3>
-                                    <p className="text-slate-500 dark:text-slate-400 mt-2">Try clearing your search term or filter.</p>
-                                </div>
-                            ) : (
-                                filteredAssets.map((result, index) => 
-                                    <AssetCard 
-                                        key={result.id} 
-                                        asset={result.asset}
-                                        details={result.details}
-                                        onSelect={handleSelectAsset}
-                                        onEdit={() => setSelectedAssetId(result.id)}
-                                        animationDelay={index * 50}
-                                    />
-                                )
-                            )}
-                        </div>
+                        {isLoading ? (
+                            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {[...Array(3)].map((_, i) => <SkeletonCard key={i} />)}
+                            </div>
+                        ) : assets.length === 0 ? (
+                            <div className="md:col-span-2 lg:col-span-3">
+                               <EmptyState addAsset={addAsset} />
+                            </div>
+                        ) : filteredAssetResults.length === 0 ? (
+                            <div className="md:col-span-2 lg:col-span-3 text-center p-8 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg rounded-2xl shadow-lg">
+                                <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200">No assets match your search or filter.</h3>
+                                <p className="text-slate-500 dark:text-slate-400 mt-2">Try clearing your search term or filter.</p>
+                            </div>
+                        ) : (
+                            dndComponents && !isFiltered ? DraggableAssetList : NonDraggableAssetList
+                        )}
+                        
                     </main>
                     
                     {!isLoading && assets.length > 0 && (
