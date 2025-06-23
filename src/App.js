@@ -1121,15 +1121,23 @@ export default function App() {
                     </main>
 
                     <div className="hidden print-only">
-                        <h2 className="text-2xl font-bold text-slate-800 mb-4 pt-8">Asset Details</h2>
-                        {calculationResults.map(result => (
-                            <PrintAssetDetail 
-                                key={`print-${result.id}`}
-                                asset={result.asset}
-                                details={result.details}
-                                method={method}
-                            />
-                        ))}
+                        <div className="text-center mb-8">
+                           <h1 className="text-2xl font-bold">Depreciation Calculator</h1>
+                           <p className="text-md">For the Financial Year {FY_LABEL}</p>
+                        </div>
+                        {calculationResults.length > 0 && (
+                           <div className="page-break-before">
+                                <h2 className="text-xl font-bold mb-4">Asset Details</h2>
+                                {calculationResults.map(result => (
+                                    <PrintAssetDetail 
+                                        key={`print-${result.id}`}
+                                        asset={result.asset}
+                                        details={result.details}
+                                        method={method}
+                                    />
+                                ))}
+                           </div>
+                        )}
                     </div>
 
 
