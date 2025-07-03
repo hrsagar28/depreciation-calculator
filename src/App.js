@@ -1140,6 +1140,106 @@ const ActSelectionScreen = ({ onSelectCalculationMode, theme, toggleTheme }) => 
     );
 };
 
+// --- START: Automated Test Component ---
+const AutomatedTests = ({ isVisible, onClose }) => {
+    const [testResults, setTestResults] = useState([]);
+
+    const testCases = useMemo(() => [
+        // Companies Act - WDV
+        { id: 'CA-WDV-1', description: 'WDV - Basic, Full Year', act: 'companies', method: 'WDV', input: { assetType: 'general_machinery', purchaseDate: '2023-04-01', companiesAct: { openingGrossBlock: 100000, openingAccumulatedDepreciation: 10000, residualValue: 0 }, additions: [], disposalDate: null, saleValue: 0 }, expected: { depreciationForYear: 16290, closingWDV: 73710 } },
+        { id: 'CA-WDV-2', description: 'WDV - Pro-rata on Addition (>180 days)', act: 'companies', method: 'WDV', input: { assetType: 'general_machinery', purchaseDate: '2023-04-01', companiesAct: { openingGrossBlock: 0, openingAccumulatedDepreciation: 0, residualValue: 0 }, additions: [{ date: '2024-05-01', cost: 50000 }], disposalDate: null, saleValue: 0 }, expected: { depreciationForYear: 8306.16, closingWDV: 41693.84 } },
+        // Companies Act - SLM
+        { id: 'CA-SLM-1', description: 'SLM - Basic, Full Year', act: 'companies', method: 'SLM', input: { assetType: 'general_machinery', purchaseDate: '2023-04-01', companiesAct: { openingGrossBlock: 150000, openingAccumulatedDepreciation: 10000, residualValue: 15000 }, additions: [], disposalDate: null, saleValue: 0 }, expected: { depreciationForYear: 9000, closingWDV: 131000 } },
+        { id: 'CA-SLM-2', description: 'SLM - Disposal with Profit', act: 'companies', method: 'SLM', input: { assetType: 'computers_laptops', purchaseDate: '2023-04-01', companiesAct: { openingGrossBlock: 60000, openingAccumulatedDepreciation: 20000, residualValue: 0 }, additions: [], disposalDate: '2024-09-30', saleValue: 50000 }, expected: { depreciationForYear: 10027.40, profitOrLoss: 20027.40, closingWDV: 0 } },
+        // Income Tax Act
+        { id: 'IT-1', description: 'IT - Addition > 180 days', act: 'income_tax', input: { blockType: 'computers_software', rate: 0.40, openingWDV: 100000, additions: [{ date: '2024-06-01', cost: 50000 }], saleProceeds: 0, blockCeased: false, eligibleForAdditional: false }, expected: { depreciationForYear: 60000, closingWDV: 90000 } },
+        { id: 'IT-2', description: 'IT - Addition < 180 days', act: 'income_tax', input: { blockType: 'computers_software', rate: 0.40, openingWDV: 100000, additions: [{ date: '2024-12-01', cost: 50000 }], saleProceeds: 0, blockCeased: false, eligibleForAdditional: false }, expected: { depreciationForYear: 50000, closingWDV: 100000 } },
+        { id: 'IT-3', description: 'IT - Additional Depreciation', act: 'income_tax', input: { blockType: 'machinery_general', rate: 0.15, openingWDV: 200000, additions: [{ date: '2024-07-01', cost: 100000 }], saleProceeds: 0, blockCeased: false, eligibleForAdditional: true }, expected: { depreciationForYear: 65000, closingWDV: 235000 } },
+        { id: 'IT-4', description: 'IT - Short Term Capital Gain', act: 'income_tax', input: { blockType: 'furniture_fittings', rate: 0.10, openingWDV: 80000, additions: [], saleProceeds: 100000, blockCeased: false, eligibleForAdditional: false }, expected: { depreciationForYear: 0, shortTermCapitalGainLoss: -20000, closingWDV: 0 } },
+        { id: 'IT-5', description: 'IT - Block Ceased with Loss', act: 'income_tax', input: { blockType: 'motor_cars', rate: 0.15, openingWDV: 500000, additions: [], saleProceeds: 400000, blockCeased: true, eligibleForAdditional: false }, expected: { depreciationForYear: 0, shortTermCapitalGainLoss: -100000, closingWDV: 0 } },
+    ], []);
+
+    const runTests = useCallback(() => {
+        const results = testCases.map(test => {
+            let actual;
+            if (test.act === 'companies') {
+                actual = calculateCompaniesActDepreciation(test.input, test.method);
+            } else {
+                actual = calculateIncomeTaxDepreciation(test.input);
+            }
+
+            let pass = true;
+            const mismatches = [];
+            for (const key in test.expected) {
+                if (round(actual[key]) !== round(test.expected[key])) {
+                    pass = false;
+                    mismatches.push({ key, expected: test.expected[key], actual: actual[key] });
+                }
+            }
+
+            return { ...test, status: pass ? 'pass' : 'fail', actual, mismatches };
+        });
+        setTestResults(results);
+    }, [testCases]);
+
+    useEffect(() => {
+        if (isVisible) {
+            runTests();
+        }
+    }, [isVisible, runTests]);
+
+    if (!isVisible) return null;
+
+    const passedCount = testResults.filter(r => r.status === 'pass').length;
+    const failedCount = testResults.filter(r => r.status === 'fail').length;
+
+    return (
+        <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-center p-4">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col">
+                <header className="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                    <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Automated Calculation Tests</h2>
+                    <button onClick={onClose} className="p-2 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" aria-label="Close tests">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </header>
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center">
+                    <div className="flex gap-4">
+                        <span className={`px-3 py-1 text-sm font-bold rounded-full ${failedCount === 0 ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'}`}>
+                            {passedCount} / {testResults.length} Passed
+                        </span>
+                    </div>
+                    <button onClick={runTests} className="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-sm hover:bg-indigo-700 transition-colors text-sm">
+                        Re-run Tests
+                    </button>
+                </div>
+                <div className="flex-grow p-4 overflow-y-auto">
+                    <div className="space-y-3">
+                        {testResults.map(test => (
+                            <div key={test.id} className={`p-3 rounded-lg border ${test.status === 'pass' ? 'bg-green-50/50 border-green-200 dark:bg-green-900/20 dark:border-green-800' : 'bg-red-50/50 border-red-200 dark:bg-red-900/20 dark:border-red-800'}`}>
+                                <div className="flex items-center justify-between">
+                                    <p className="font-medium text-slate-800 dark:text-slate-200">{test.description}</p>
+                                    <span className={`px-2 py-0.5 text-xs font-bold rounded-full uppercase ${test.status === 'pass' ? 'bg-green-200 text-green-800 dark:bg-green-500' : 'bg-red-200 text-red-800 dark:bg-red-500'}`}>{test.status}</span>
+                                </div>
+                                {test.status === 'fail' && (
+                                    <div className="mt-2 p-2 bg-white dark:bg-slate-800 rounded text-xs space-y-1">
+                                        {test.mismatches.map(m => (
+                                            <div key={m.key}>
+                                                <span className="font-bold">{m.key}:</span>
+                                                <span className="text-red-600 dark:text-red-400"> Expected {formatCurrency(m.expected)}, Got {formatCurrency(m.actual)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+// --- END: Automated Test Component ---
+
 
 export default function App() {
     const [isLoading, setIsLoading] = useState(true);
@@ -1155,11 +1255,22 @@ export default function App() {
 
     const [isAssetDeleteModalOpen, setIsAssetDeleteModalOpen] = useState(false);
     const [isBlockDeleteModalOpen, setIsBlockDeleteModalOpen] = useState(false);
+    const [isTestRunnerVisible, setIsTestRunnerVisible] = useState(false);
     const [toast, setToast] = useState({ message: '', show: false, onUndo: null });
     const [filterType, setFilterType] = useState(null);
     const [selectedAssetId, setSelectedAssetId] = useState(null);
     const [selectedBlockId, setSelectedBlockId] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [blockSearchTerm, setBlockSearchTerm] = useState('');
+
+    // Check for test mode using URL query parameter
+    const isTestMode = useMemo(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('mode') === 'test';
+        }
+        return false;
+    }, []);
 
     const debouncedAssets = useDebounce(assets, 300);
     const debouncedAssetBlocks = useDebounce(assetBlocks, 300);
@@ -1183,7 +1294,7 @@ export default function App() {
                 method: stateToSave.method,
                 act: stateToSave.act,
             };
-            localStorage.setItem('depreciationAppStateV7', JSON.stringify(dataToSave));
+            localStorage.setItem('depreciationAppStateV8', JSON.stringify(dataToSave));
             localStorage.setItem('depreciationAppTheme', stateToSave.theme);
         } catch (error) {
             console.error("Failed to save state to localStorage", error);
@@ -1207,7 +1318,7 @@ export default function App() {
     useEffect(() => {
         const timer = setTimeout(() => {
             try {
-                const savedState = localStorage.getItem('depreciationAppStateV7');
+                const savedState = localStorage.getItem('depreciationAppStateV8');
                 const savedTheme = localStorage.getItem('depreciationAppTheme');
                 setTheme(savedTheme || 'light');
 
@@ -1243,6 +1354,9 @@ export default function App() {
 
     const handleSelectAct = (selectedAct) => {
         setAct(selectedAct);
+        setFilterType(null);
+        setSearchTerm('');
+        setBlockSearchTerm('');
     };
     
     const addAsset = useCallback(() => {
@@ -1435,9 +1549,9 @@ export default function App() {
         return summary;
     }, [calculationResults, act]);
 
-    const filteredAssetResults = useMemo(() => {
+    const filteredItems = useMemo(() => {
+        let results = calculationResults;
         if (act === 'companies') {
-            let results = calculationResults;
             if (filterType) {
                 results = results.filter(result => result.asset.assetType === filterType);
             }
@@ -1447,10 +1561,19 @@ export default function App() {
                     result.asset.name.toLowerCase().includes(lowercasedFilter)
                 );
             }
-            return results;
+        } else if (act === 'income_tax') {
+            if (filterType) {
+                results = results.filter(result => result.block.blockType === filterType);
+            }
+            if (blockSearchTerm) {
+                const lowercasedFilter = blockSearchTerm.toLowerCase();
+                results = results.filter(result => 
+                    result.block.name.toLowerCase().includes(lowercasedFilter)
+                );
+            }
         }
-        return calculationResults; // No filtering for blocks yet
-    }, [calculationResults, filterType, searchTerm, act]);
+        return results;
+    }, [calculationResults, filterType, searchTerm, blockSearchTerm, act]);
     
     const selectedAssetCount = useMemo(() => assets.filter(a => a.isSelected).length, [assets]);
     const selectedBlockCount = useMemo(() => assetBlocks.filter(b => b.isSelected).length, [assetBlocks]);
@@ -1470,20 +1593,25 @@ export default function App() {
     }, [selectedBlockId, calculationResults, act]);
     
     const allVisibleAssetsSelected = useMemo(() => {
-        const visibleIds = new Set(filteredAssetResults.map(r => r.id));
+        if (act !== 'companies') return false;
+        const visibleIds = new Set(filteredItems.map(r => r.id));
         if(visibleIds.size === 0) return false;
         const visibleAssets = assets.filter(a => visibleIds.has(a.id));
         if(visibleAssets.length === 0) return false;
         return visibleAssets.every(a => a.isSelected);
-    }, [assets, filteredAssetResults]);
+    }, [assets, filteredItems, act]);
 
-    const allBlocksSelected = useMemo(() => {
-        if(assetBlocks.length === 0) return false;
-        return assetBlocks.every(b => b.isSelected);
-    }, [assetBlocks]);
+    const allVisibleBlocksSelected = useMemo(() => {
+        if (act !== 'income_tax') return false;
+        const visibleIds = new Set(filteredItems.map(r => r.id));
+        if(visibleIds.size === 0) return false;
+        const visibleBlocks = assetBlocks.filter(b => visibleIds.has(b.id));
+        if(visibleBlocks.length === 0) return false;
+        return visibleBlocks.every(b => b.isSelected);
+    }, [assetBlocks, filteredItems, act]);
 
     const handleSelectAllAssets = useCallback(() => {
-        const visibleIds = new Set(filteredAssetResults.map(a => a.id));
+        const visibleIds = new Set(filteredItems.map(a => a.id));
         const shouldSelectAll = !allVisibleAssetsSelected;
         setAssets(prevAssets => 
             prevAssets.map(asset => {
@@ -1493,12 +1621,18 @@ export default function App() {
                 return asset;
             })
         );
-    }, [filteredAssetResults, allVisibleAssetsSelected]);
+    }, [filteredItems, allVisibleAssetsSelected]);
 
     const handleSelectAllBlocks = useCallback(() => {
-        const shouldSelectAll = !allBlocksSelected;
-        setAssetBlocks(prevBlocks => prevBlocks.map(block => ({...block, isSelected: shouldSelectAll})));
-    }, [allBlocksSelected]);
+        const visibleIds = new Set(filteredItems.map(b => b.id));
+        const shouldSelectAll = !allVisibleBlocksSelected;
+        setAssetBlocks(prevBlocks => prevBlocks.map(block => {
+            if (visibleIds.has(block.id)) {
+                return {...block, isSelected: shouldSelectAll};
+            }
+            return block;
+        }));
+    }, [filteredItems, allVisibleBlocksSelected]);
 
     const renderCompaniesActContent = () => (
         <>
@@ -1528,7 +1662,7 @@ export default function App() {
                         )}
                    </div>
                 </div>
-                {assets.length === 0 ? <EmptyState addAsset={addAsset} act={act} /> : <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{filteredAssetResults.map((result) => <AssetCard key={result.id} asset={result.asset} details={result.details} onSelect={handleSelectAsset} onEdit={() => setSelectedAssetId(result.id)} />)}</div>}
+                {assets.length === 0 ? <EmptyState addAsset={addAsset} act={act} /> : <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{filteredItems.map((result) => <AssetCard key={result.id} asset={result.asset} details={result.details} onSelect={handleSelectAsset} onEdit={() => setSelectedAssetId(result.id)} />)}</div>}
             </main>
             {!isLoading && <button onClick={addAsset} className="fixed bottom-6 right-6 md:bottom-8 md:right-8 h-16 w-16 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center justify-center" title="Add New Asset" aria-label="Add new asset"><svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg></button>}
             {selectedAssetData && <AssetDetailPanel key={selectedAssetData.id} asset={selectedAssetData.asset} details={selectedAssetData.details} updateAsset={updateAsset} method={method} act={act} onClose={() => setSelectedAssetId(null)} />}
@@ -1537,18 +1671,32 @@ export default function App() {
 
     const renderIncomeTaxContent = () => (
         <main>
-            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-4">Asset Blocks</h2>
-             {selectedBlockCount > 0 && (
-                <div className="flex items-center gap-4 mb-4">
-                    <button onClick={handleSelectAllBlocks} className="px-4 py-2 bg-slate-600 text-white font-semibold rounded-lg shadow-sm hover:bg-slate-700 transition-colors text-sm">{allBlocksSelected ? 'Deselect All' : 'Select All'}</button>
-                    <button onClick={handleDeleteBlockRequest} className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-sm hover:bg-red-700 transition-colors text-sm">Delete ({selectedBlockCount})</button>
+            <div className="mb-4">
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-4">Asset Blocks</h2>
+                {selectedBlockCount > 0 && (
+                    <div className="flex items-center gap-4 mb-4">
+                        <button onClick={handleSelectAllBlocks} className="px-4 py-2 bg-slate-600 text-white font-semibold rounded-lg shadow-sm hover:bg-slate-700 transition-colors text-sm">{allVisibleBlocksSelected ? 'Deselect All' : 'Select All'}</button>
+                        <button onClick={handleDeleteBlockRequest} className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-sm hover:bg-red-700 transition-colors text-sm">Delete ({selectedBlockCount})</button>
+                    </div>
+                )}
+                <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
+                    <div className="relative w-full md:max-w-md">
+                        <input type="text" placeholder="Search blocks by name..." value={blockSearchTerm} onChange={(e) => setBlockSearchTerm(e.target.value)} className="w-full bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 border-2 border-slate-300 dark:border-slate-600 rounded-lg pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm transition"/>
+                        <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                    </div>
+                    {filterType && !isLoading && (
+                        <button onClick={() => setFilterType(null)} className="px-3 py-2 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 text-sm font-semibold rounded-lg shadow-sm hover:bg-indigo-200 dark:hover:bg-indigo-900 transition-colors flex items-center gap-1">
+                            <span>Filtering by: {(INCOME_TAX_BLOCKS[filterType]?.name || filterType).replace(/_/g, ' ')}</span>
+                            <span className="font-bold">&times;</span>
+                        </button>
+                    )}
                 </div>
-            )}
+            </div>
             {assetBlocks.length === 0 ? (
                 <EmptyState addAsset={addBlock} act={act} />
             ) : (
                 <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {calculationResults.map(result => (
+                    {filteredItems.map(result => (
                         <BlockCard 
                             key={result.id} 
                             block={result.block} 
@@ -1581,6 +1729,7 @@ export default function App() {
     return (
         <div className={theme}>
             <PrintStyles />
+            <AutomatedTests isVisible={isTestRunnerVisible} onClose={() => setIsTestRunnerVisible(false)} />
             
             <div className="print-only">
                  <PrintLayout 
@@ -1623,9 +1772,17 @@ export default function App() {
                         </div>
                     </header>
                     
-                    {isLoading ? <SkeletonSummary /> : <SummaryReport summaryData={summaryData} onFilterChange={setFilterType} showToast={showToast} filterType={filterType} theme={theme} act={act} setAct={setAct} />}
+                    {isLoading ? <SkeletonSummary /> : <SummaryReport summaryData={summaryData} onFilterChange={setFilterType} showToast={showToast} filterType={filterType} theme={theme} act={act} setAct={handleSelectAct} />}
 
                     {act === 'companies' ? renderCompaniesActContent() : renderIncomeTaxContent()}
+
+                    {isTestMode && (
+                        <footer className="text-center mt-12">
+                            <button onClick={() => setIsTestRunnerVisible(true)} className="text-sm text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                                Run Automated Calculation Tests
+                            </button>
+                        </footer>
+                    )}
                 </div>
             </div>
         </div>
