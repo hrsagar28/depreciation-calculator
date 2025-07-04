@@ -41,6 +41,18 @@ const INCOME_TAX_BLOCKS = {
   'books_annual': { name: 'Books (Annual Publications)', rate: 1.00 },
 };
 
+// List of block types statutorily excluded from additional depreciation
+const EXCLUDED_BLOCK_TYPES_FOR_ADDITIONAL_DEP = [
+    'ships_vessels',
+    'motor_cars',
+    'motor_buses_lorries_taxis_hire',
+    'aircraft',
+    'intangibles', 
+    'building_residential',
+    'building_general',
+    'building_temporary',
+];
+
 
 // --- Helper & Hook Functions ---
 const round = (value) => parseFloat(value.toFixed(2));
@@ -116,10 +128,13 @@ const calculateCompaniesActDepreciation = (asset, method) => {
     const openingGrossBlock = Math.max(0, parseFloat(financialData.openingGrossBlock) || 0);
     const openingAccumulatedDepreciation = Math.max(0, parseFloat(financialData.openingAccumulatedDepreciation) || 0);
     const residualValue = Math.max(0, parseFloat(financialData.residualValue) || 0);
-    const saleValue = Math.max(0, parseFloat(asset.saleValue) || 0);
     const grossBlockAdditions = asset.additions.reduce((sum, add) => sum + (Math.max(0, parseFloat(add.cost)) || 0), 0);
     
-    if (openingGrossBlock <= 0 && grossBlockAdditions === 0) {
+    // IMPROVEMENT 1: If no opening block or additions, sale value is irrelevant.
+    const hasValueAtStart = openingGrossBlock > 0 || grossBlockAdditions > 0;
+    const saleValue = hasValueAtStart ? Math.max(0, parseFloat(asset.saleValue) || 0) : 0;
+    
+    if (!hasValueAtStart) {
         return { depreciationForYear: 0, closingWDV: 0, workings: [], profitOrLoss: 0, openingGrossBlock: 0, grossBlockAdditions: 0, disposalsCost: 0, closingGrossBlock: 0, openingAccumulatedDepreciation: 0, closingAccumulatedDepreciation: 0, openingWDV: 0, saleValue: 0 };
     }
 
@@ -198,7 +213,6 @@ const calculateCompaniesActDepreciation = (asset, method) => {
 
 const calculateIncomeTaxDepreciation = (block) => {
     const openingWDV = Math.max(0, parseFloat(block.openingWDV) || 0);
-    const saleProceeds = Math.max(0, parseFloat(block.saleProceeds) || 0);
     const blockCeased = block.blockCeased || false;
     const eligibleForAdditional = block.eligibleForAdditional || false;
     const rate = block.rate || 0;
@@ -219,8 +233,12 @@ const calculateIncomeTaxDepreciation = (block) => {
     });
     additionsFullRate = round(additionsFullRate);
     additionsHalfRate = round(additionsHalfRate);
-
     const totalAdditions = round(additionsFullRate + additionsHalfRate);
+
+    // IMPROVEMENT 1: If no opening block or additions, sale value is irrelevant.
+    const hasValueAtStart = openingWDV > 0 || totalAdditions > 0;
+    const saleProceeds = hasValueAtStart ? Math.max(0, parseFloat(block.saleProceeds) || 0) : 0;
+
     const wdvBeforeDep = round(openingWDV + totalAdditions - saleProceeds);
 
     let depreciationForYear = 0;
@@ -290,12 +308,18 @@ const calculateIncomeTaxDepreciation = (block) => {
 
 
 // --- UI Components ---
-const Tooltip = ({ text, children }) => (
-    <div className="relative flex items-center group" tabIndex="0">
-        {children}
-        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-48 bg-slate-800 text-white text-xs rounded-lg py-2 px-3 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-300 pointer-events-none z-20 shadow-lg">
+
+// IMPROVEMENT 3: Enhanced Tooltip with proper ARIA attributes
+const Tooltip = ({ text, children, id }) => (
+    <div className="relative flex items-center group">
+        {React.cloneElement(children, { 'aria-describedby': id })}
+        <div
+            id={id}
+            role="tooltip"
+            className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-48 bg-slate-800 text-white text-xs rounded-lg py-2 px-3 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-300 pointer-events-none z-20 shadow-lg"
+        >
             {text}
-            <svg className="absolute text-slate-800 h-2 w-full left-0 bottom-full transform rotate-180" x="0px" y="0px" viewBox="0 0 255 255"><polygon className="fill-current" points="0,0 127.5,127.5 255,0"/></svg>
+            <svg className="absolute text-slate-800 h-2 w-full left-0 bottom-full" x="0px" y="0px" viewBox="0 0 255 255"><polygon className="fill-current" points="0,255 127.5,127.5 255,255"/></svg>
         </div>
     </div>
 );
@@ -309,7 +333,7 @@ const AssetCard = ({ asset, details, onSelect, onEdit }) => {
             <div className="p-5 sm:p-4">
                 <div className="flex justify-between items-start gap-4">
                     <div className="flex items-center flex-shrink-0 mr-4">
-                        <input type="checkbox" checked={asset.isSelected} onChange={(e) => onSelect(asset.id, e.target.checked)} onClick={(e) => e.stopPropagation()} className="h-6 w-6 rounded border-slate-400 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 cursor-pointer"/>
+                        <input type="checkbox" checked={asset.isSelected} onChange={(e) => onSelect(asset.id, e.target.checked)} onClick={(e) => e.stopPropagation()} className="h-6 w-6 rounded border-slate-400 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 cursor-pointer" aria-label={`Select asset ${asset.name || 'Unnamed Asset'}`}/>
                     </div>
                     <div className="flex-1 min-w-0">
                         <p className="text-lg md:text-lg font-bold text-slate-800 dark:text-slate-100 truncate">{asset.name || 'Unnamed Asset'}</p>
@@ -334,7 +358,7 @@ const BlockCard = ({ block, details, onSelect, onEdit }) => {
             <div className="p-5 sm:p-4">
                 <div className="flex justify-between items-start gap-4">
                     <div className="flex items-center flex-shrink-0 mr-4">
-                        <input type="checkbox" checked={block.isSelected} onChange={(e) => onSelect(block.id, e.target.checked)} onClick={(e) => e.stopPropagation()} className="h-6 w-6 rounded border-slate-400 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 cursor-pointer"/>
+                        <input type="checkbox" checked={block.isSelected} onChange={(e) => onSelect(block.id, e.target.checked)} onClick={(e) => e.stopPropagation()} className="h-6 w-6 rounded border-slate-400 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 cursor-pointer" aria-label={`Select block ${block.name || 'Unnamed Block'}`}/>
                     </div>
                     <div className="flex-1 min-w-0">
                         <p className="text-lg md:text-lg font-bold text-slate-800 dark:text-slate-100 truncate">{block.name || 'Unnamed Block'}</p>
@@ -364,6 +388,9 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, act, onClose })
     const isAdditionDateInvalid = newAddition.date && !isValidDate(newAddition.date);
     const isResidualValueEmptyForSLM = method === 'SLM' && financialData.residualValue === '';
     const isDisposalDateInvalid = asset.disposalDate && asset.purchaseDate && new Date(asset.disposalDate) < new Date(asset.purchaseDate);
+    
+    // IMPROVEMENT 1: Logic to disable sale value input
+    const canHaveSaleValue = (parseFloat(financialData.openingGrossBlock) || 0) > 0 || asset.additions.length > 0;
 
     useEffect(() => {
         const timer = setTimeout(() => setIsVisible(true), 10);
@@ -423,8 +450,8 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, act, onClose })
                 <div className="flex-grow p-6 overflow-y-auto">
                     <div className="space-y-6">
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Asset Type</label>
-                            <select name="assetType" value={asset.assetType} onChange={handleInputChange} className={`${inputFieldClass} text-sm ${!asset.assetType ? 'border-amber-500 ring-1 ring-amber-500' : ''}`}>
+                            <label htmlFor={`assetType-${asset.id}`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Asset Type</label>
+                            <select id={`assetType-${asset.id}`} name="assetType" value={asset.assetType} onChange={handleInputChange} className={`${inputFieldClass} text-sm ${!asset.assetType ? 'border-amber-500 ring-1 ring-amber-500' : ''}`}>
                                 <option value="" disabled>-- Select Asset Type --</option>
                                 {Object.entries(SCHEDULE_II_WDV_RATES).map(([key, val]) => (
                                     <option key={key} value={key}>{key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</option>
@@ -440,33 +467,33 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, act, onClose })
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-6">
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                    <Tooltip text="The total cost of the asset at the beginning of the financial year.">
-                                        Opening Gross Block (₹) <span className="text-slate-400">(?)</span>
+                                <label htmlFor={`openingGrossBlock-${asset.id}`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                    <Tooltip text="The total cost of the asset at the beginning of the financial year." id={`tooltip-ogb-${asset.id}`}>
+                                        <span tabIndex="0">Opening Gross Block (₹) <span className="text-slate-400">(?)</span></span>
                                     </Tooltip>
                                 </label>
-                                <input type="number" name="openingGrossBlock" value={financialData.openingGrossBlock} onChange={handleInputChange} className={`${inputFieldClass} ${isGrossBlockEmpty ? 'border-red-500 ring-1 ring-red-500' : ''}`} placeholder="e.g. 500000" />
+                                <input id={`openingGrossBlock-${asset.id}`} type="number" name="openingGrossBlock" value={financialData.openingGrossBlock} onChange={handleInputChange} className={`${inputFieldClass} ${isGrossBlockEmpty ? 'border-red-500 ring-1 ring-red-500' : ''}`} placeholder="e.g. 500000" />
                                 {isGrossBlockEmpty && <p className="text-xs text-red-600 mt-1">Gross Block is required if no Additions.</p>}
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                    <Tooltip text="Total depreciation charged on the asset up to the beginning of the financial year.">
-                                        Opening Accum. Dep. (₹) <span className="text-slate-400">(?)</span>
+                                <label htmlFor={`openingAccumulatedDepreciation-${asset.id}`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                    <Tooltip text="Total depreciation charged on the asset up to the beginning of the financial year." id={`tooltip-oad-${asset.id}`}>
+                                        <span tabIndex="0">Opening Accum. Dep. (₹) <span className="text-slate-400">(?)</span></span>
                                     </Tooltip>
                                 </label>
-                                <input type="number" name="openingAccumulatedDepreciation" value={financialData.openingAccumulatedDepreciation} onChange={handleInputChange} className={`${inputFieldClass} ${isInvalidAccumDep ? 'border-red-500 ring-1 ring-red-500' : ''} ${isAccumDepEmpty ? 'border-amber-500 ring-1 ring-amber-500' : ''}`} placeholder="e.g. 50000" />
+                                <input id={`openingAccumulatedDepreciation-${asset.id}`} type="number" name="openingAccumulatedDepreciation" value={financialData.openingAccumulatedDepreciation} onChange={handleInputChange} className={`${inputFieldClass} ${isInvalidAccumDep ? 'border-red-500 ring-1 ring-red-500' : ''} ${isAccumDepEmpty ? 'border-amber-500 ring-1 ring-amber-500' : ''}`} placeholder="e.g. 50000" />
                                 {isInvalidAccumDep && <p className="text-xs text-red-600 mt-1">Accum. Dep. cannot exceed Gross Block.</p>}
                                 {isAccumDepEmpty && <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">Required field. Enter 0 if none.</p>}
                             </div>
 
                             {method === 'SLM' && (
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                       <Tooltip text="The estimated value of the asset at the end of its useful life. Enter 0 if none.">
-                                         Residual Value (₹) <span className="text-slate-400">(?)</span>
+                                    <label htmlFor={`residualValue-${asset.id}`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                       <Tooltip text="The estimated value of the asset at the end of its useful life. Enter 0 if none." id={`tooltip-rv-${asset.id}`}>
+                                         <span tabIndex="0">Residual Value (₹) <span className="text-slate-400">(?)</span></span>
                                        </Tooltip>
                                    </label>
-                                   <input type="number" name="residualValue" value={financialData.residualValue} onChange={handleInputChange} className={`${inputFieldClass} ${isInvalidResidual ? 'border-red-500 ring-1 ring-red-500' : ''}`} placeholder="e.g. 25000" />
+                                   <input id={`residualValue-${asset.id}`} type="number" name="residualValue" value={financialData.residualValue} onChange={handleInputChange} className={`${inputFieldClass} ${isInvalidResidual ? 'border-red-500 ring-1 ring-red-500' : ''}`} placeholder="e.g. 25000" />
                                    {isInvalidResidual && <p className="text-xs text-red-600 mt-1">Residual value cannot exceed Gross Block.</p>}
                                    {isResidualValueEmptyForSLM && <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">Required for SLM. Defaults to 0 if empty.</p>}
                                 </div>
@@ -488,12 +515,13 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, act, onClose })
                                  );
                              })}
                             <div className="flex flex-col sm:flex-row items-center gap-2 mt-3">
-                                <input type="date" value={newAddition.date} onChange={(e) => setNewAddition(p => ({...p, date: e.target.value}))} className={`${inputFieldClass} flex-1`} min={FY_START_DATE} max={asset.disposalDate || FY_END_DATE}/>
-                                <input type="number" value={newAddition.cost} onChange={(e) => setNewAddition(p => ({...p, cost: e.target.value}))} placeholder="Cost of Addition (₹)" className={`${inputFieldClass} flex-1`}/>
+                                <input type="date" aria-label="New addition date" value={newAddition.date} onChange={(e) => setNewAddition(p => ({...p, date: e.target.value}))} className={`${inputFieldClass} flex-1`} min={FY_START_DATE} max={asset.disposalDate || FY_END_DATE}/>
+                                <input type="number" aria-label="New addition cost" value={newAddition.cost} onChange={(e) => setNewAddition(p => ({...p, cost: e.target.value}))} placeholder="Cost of Addition (₹)" className={`${inputFieldClass} flex-1`}/>
                                 {method === 'SLM' && (
-                                   <Tooltip text="Optional: Residual value for this specific addition. Defaults to 0 if empty.">
+                                   <Tooltip text="Optional: Residual value for this specific addition. Defaults to 0 if empty." id={`tooltip-add-rv-${asset.id}`}>
                                     <input 
                                         type="number" 
+                                        aria-label="New addition residual value"
                                         value={newAddition.residualValue} 
                                         onChange={(e) => setNewAddition(p => ({...p, residualValue: e.target.value}))} 
                                         placeholder="Residual Value (₹)" 
@@ -510,27 +538,27 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, act, onClose })
                             <h4 className="text-md font-semibold text-slate-800 dark:text-slate-100 mb-3">Disposal / Sale</h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                  <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                         <Tooltip text="The original date the asset was purchased. Required for accurate depreciation on opening balances and for disposals.">
-                                              Orig. Purchase Date <span className={`font-bold ${!asset.purchaseDate ? 'text-red-500' : 'text-slate-400'}`}>(?)</span>
+                                    <label htmlFor={`purchaseDate-${asset.id}`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                         <Tooltip text="The original date the asset was purchased. Required for accurate depreciation on opening balances and for disposals." id={`tooltip-pd-${asset.id}`}>
+                                              <span tabIndex="0">Orig. Purchase Date <span className={`font-bold ${!asset.purchaseDate ? 'text-red-500' : 'text-slate-400'}`}>(?)</span></span>
                                          </Tooltip>
                                     </label>
-                                    <input type="date" name="purchaseDate" value={asset.purchaseDate} onChange={handleInputChange} className={`${inputFieldClass} ${!asset.purchaseDate || isPurchaseDateInvalid ? 'border-red-500 ring-1 ring-red-500' : ''}`} />
+                                    <input id={`purchaseDate-${asset.id}`} type="date" name="purchaseDate" value={asset.purchaseDate} onChange={handleInputChange} className={`${inputFieldClass} ${!asset.purchaseDate || isPurchaseDateInvalid ? 'border-red-500 ring-1 ring-red-500' : ''}`} />
                                     {!asset.purchaseDate && <p className="text-xs text-red-600 mt-1">Purchase date is required.</p>}
                                     {isPurchaseDateInvalid && <p className="text-xs text-red-600 mt-1">Purchase date is invalid.</p>}
                                  </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Disposal Date</label>
-                                    <input type="date" name="disposalDate" value={asset.disposalDate} onChange={handleInputChange} className={`${inputFieldClass} ${isDisposalDateInvalid ? 'border-red-500 ring-1 ring-red-500' : ''}`} min={FY_START_DATE} max={FY_END_DATE} />
+                                    <label htmlFor={`disposalDate-${asset.id}`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Disposal Date</label>
+                                    <input id={`disposalDate-${asset.id}`} type="date" name="disposalDate" value={asset.disposalDate} onChange={handleInputChange} className={`${inputFieldClass} ${isDisposalDateInvalid ? 'border-red-500 ring-1 ring-red-500' : ''}`} min={FY_START_DATE} max={FY_END_DATE} />
                                     {isDisposalDateInvalid && <p className="text-xs text-red-600 mt-1">Disposal date cannot be before purchase date.</p>}
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                        <Tooltip text="A sale value higher than the Written Down Value (WDV) will result in a profit, which may have tax implications and require verification.">
-                                            Sale Value (₹) <span className="text-slate-400">(?)</span>
+                                    <label htmlFor={`saleValue-${asset.id}`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                        <Tooltip text="A sale value higher than the Written Down Value (WDV) will result in a profit, which may have tax implications and require verification." id={`tooltip-sv-${asset.id}`}>
+                                            <span tabIndex="0">Sale Value (₹) <span className="text-slate-400">(?)</span></span>
                                         </Tooltip>
                                     </label>
-                                    <input type="number" name="saleValue" value={asset.saleValue} onChange={handleInputChange} className={inputFieldClass} placeholder="e.g., 100000" disabled={!asset.disposalDate}/>
+                                    <input id={`saleValue-${asset.id}`} type="number" name="saleValue" value={asset.saleValue} onChange={handleInputChange} className={inputFieldClass} placeholder="e.g., 100000" disabled={!asset.disposalDate || !canHaveSaleValue}/>
                                 </div>
                             </div>
                         </div>
@@ -630,7 +658,7 @@ const Toast = ({ message, show, onClose, onUndo }) => {
     );
 };
 
-const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, children }) => {
+const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, children, confirmText = "Confirm" }) => {
     if (!isOpen) return null;
 
     return (
@@ -640,7 +668,7 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, children }) => {
                 <div className="text-slate-600 dark:text-slate-300 mb-6">{children}</div>
                 <div className="flex justify-end gap-4">
                     <button onClick={onClose} className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">Cancel</button>
-                    <button onClick={onConfirm} className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors">Confirm Deletion</button>
+                    <button onClick={onConfirm} className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors">{confirmText}</button>
                 </div>
             </div>
         </div>
@@ -1102,6 +1130,9 @@ const EmptyState = ({ addAsset, act }) => (
 );
 
 const ActSelectionScreen = ({ onSelectCalculationMode, theme, toggleTheme }) => {
+    // IMPROVEMENT 4: UI Consistency
+    // The buttons here are intentionally different to signify distinct paths.
+    // The consistency is applied *within* each calculator path.
     return (
         <div className={theme}>
             <div className="bg-gradient-to-br from-slate-50 to-slate-200 dark:from-slate-900 dark:to-slate-950 min-h-screen text-slate-800 font-sans flex flex-col justify-center items-center p-4">
@@ -1294,7 +1325,7 @@ export default function App() {
                 method: stateToSave.method,
                 act: stateToSave.act,
             };
-            localStorage.setItem('depreciationAppStateV8', JSON.stringify(dataToSave));
+            localStorage.setItem('depreciationAppStateV9', JSON.stringify(dataToSave));
             localStorage.setItem('depreciationAppTheme', stateToSave.theme);
         } catch (error) {
             console.error("Failed to save state to localStorage", error);
@@ -1318,7 +1349,7 @@ export default function App() {
     useEffect(() => {
         const timer = setTimeout(() => {
             try {
-                const savedState = localStorage.getItem('depreciationAppStateV8');
+                const savedState = localStorage.getItem('depreciationAppStateV9');
                 const savedTheme = localStorage.getItem('depreciationAppTheme');
                 setTheme(savedTheme || 'light');
 
@@ -1387,6 +1418,11 @@ export default function App() {
             saleProceeds: '',
             blockCeased: false,
             eligibleForAdditional: false,
+            additionalDepEligibility: {
+                isNewPlantMachinery: false,
+                isManufacturing: false,
+                isNotExcluded: false,
+            },
             isSelected: false,
             isNew: true,
         };
@@ -1707,7 +1743,7 @@ export default function App() {
                     ))}
                 </div>
             )}
-            {!isLoading && <button onClick={addBlock} className="fixed bottom-6 right-6 md:bottom-8 md:right-8 h-16 w-16 bg-gradient-to-br from-teal-500 to-cyan-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center justify-center" title="Add New Block" aria-label="Add new block"><svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg></button>}
+            {!isLoading && <button onClick={addBlock} className="fixed bottom-6 right-6 md:bottom-8 md:right-8 h-16 w-16 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center justify-center" title="Add New Block" aria-label="Add new block"><svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg></button>}
             {selectedBlockData && <BlockDetailPanel key={selectedBlockData.id} block={selectedBlockData.block} details={selectedBlockData.details} updateBlock={updateBlock} onClose={() => setSelectedBlockId(null)} />}
         </main>
     );
@@ -1754,6 +1790,7 @@ export default function App() {
                         onClose={() => { setIsAssetDeleteModalOpen(false); setIsBlockDeleteModalOpen(false); }}
                         onConfirm={act === 'companies' ? handleConfirmAssetDelete : handleConfirmBlockDelete}
                         title="Confirm Deletion"
+                        confirmText="Confirm Deletion"
                     >
                         Are you sure you want to delete the selected {act === 'companies' ? selectedAssetCount : selectedBlockCount} item(s)? This action cannot be undone.
                     </ConfirmationModal>
@@ -1789,9 +1826,63 @@ export default function App() {
     );
 }
 
+// IMPROVEMENT 5: New component for guided eligibility check
+const AdditionalDepreciationModal = ({ isOpen, onClose, onConfirm, eligibilityData, setEligibilityData }) => {
+    if (!isOpen) return null;
+
+    const handleCheckboxChange = (e) => {
+        const { name, checked } = e.target;
+        setEligibilityData(prev => ({ ...prev, [name]: checked }));
+    };
+
+    const isEligible = eligibilityData.isNewPlantMachinery && eligibilityData.isManufacturing && eligibilityData.isNotExcluded;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4" aria-modal="true" role="dialog">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-lg m-4">
+                <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+                    <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Additional Depreciation Eligibility Checklist</h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Confirm the following conditions as per Section 32(1)(iia) of the Income Tax Act.</p>
+                </div>
+                <div className="p-6 space-y-4">
+                    <label className="flex items-start p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                        <input type="checkbox" name="isNewPlantMachinery" checked={eligibilityData.isNewPlantMachinery} onChange={handleCheckboxChange} className="h-5 w-5 mt-0.5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" />
+                        <span className="ml-3 text-sm text-slate-700 dark:text-slate-300">The additions represent <strong className="font-semibold">new</strong> plant or machinery.</span>
+                    </label>
+                    <label className="flex items-start p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                        <input type="checkbox" name="isManufacturing" checked={eligibilityData.isManufacturing} onChange={handleCheckboxChange} className="h-5 w-5 mt-0.5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" />
+                        <span className="ml-3 text-sm text-slate-700 dark:text-slate-300">The assessee is engaged in the business of <strong className="font-semibold">manufacture or production</strong> of any article or thing.</span>
+                    </label>
+                    <label className="flex items-start p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                        <input type="checkbox" name="isNotExcluded" checked={eligibilityData.isNotExcluded} onChange={handleCheckboxChange} className="h-5 w-5 mt-0.5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" />
+                        <span className="ml-3 text-sm text-slate-700 dark:text-slate-300">The asset is <strong className="font-semibold">NOT</strong> a ship, aircraft, second-hand machinery, office appliance, or road transport vehicle.</span>
+                    </label>
+                </div>
+                 <div className={`p-4 rounded-b-2xl ${isEligible ? 'bg-green-50 dark:bg-green-900/30' : 'bg-amber-50 dark:bg-amber-900/30'}`}>
+                    <p className={`text-sm text-center font-medium ${isEligible ? 'text-green-800 dark:text-green-300' : 'text-amber-800 dark:text-amber-300'}`}>
+                        {isEligible ? 'Based on your selections, the asset is eligible.' : 'All conditions must be met to claim additional depreciation.'}
+                    </p>
+                </div>
+                <div className="flex justify-end gap-4 p-6 bg-slate-50 dark:bg-slate-800/50 rounded-b-2xl">
+                    <button onClick={onClose} className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">Cancel</button>
+                    <button onClick={() => onConfirm(isEligible)} className="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-indigo-400" disabled={!isEligible}>Confirm Eligibility</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const BlockDetailPanel = ({ block, details, updateBlock, onClose }) => {
     const [isVisible, setIsVisible] = useState(false);
     const [newAddition, setNewAddition] = useState({ date: '', cost: '' });
+    
+    // State for new modals
+    const [isCessationModalOpen, setCessationModalOpen] = useState(false);
+    const [isAdditionalDepModalOpen, setAdditionalDepModalOpen] = useState(false);
+    const [tempEligibility, setTempEligibility] = useState(block.additionalDepEligibility || { isNewPlantMachinery: false, isManufacturing: false, isNotExcluded: false });
+
+    // Check if the current block type is eligible for additional depreciation
+    const isBlockTypeEligibleForAdditionalDep = block.blockType && !EXCLUDED_BLOCK_TYPES_FOR_ADDITIONAL_DEP.includes(block.blockType);
 
     useEffect(() => {
         const timer = setTimeout(() => setIsVisible(true), 10);
@@ -1805,6 +1896,13 @@ const BlockDetailPanel = ({ block, details, updateBlock, onClose }) => {
     
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
+        
+        // IMPROVEMENT 2: Intercept blockCeased change to show modal
+        if (name === 'blockCeased' && checked) {
+            setCessationModalOpen(true);
+            return; // Don't update state directly
+        }
+
         let sanitizedValue = type === 'checkbox' ? checked : value;
 
         if (type === 'number') {
@@ -1823,9 +1921,24 @@ const BlockDetailPanel = ({ block, details, updateBlock, onClose }) => {
                 updatedBlock.name = blockDetails.name;
                 updatedBlock.rate = blockDetails.rate;
             }
+            // If block type changes to an ineligible one, reset additional depreciation
+            if (EXCLUDED_BLOCK_TYPES_FOR_ADDITIONAL_DEP.includes(sanitizedValue)) {
+                updatedBlock.eligibleForAdditional = false;
+                updatedBlock.additionalDepEligibility = { isNewPlantMachinery: false, isManufacturing: false, isNotExcluded: false };
+            }
         }
         
         updateBlock(block.id, updatedBlock);
+    };
+    
+    const handleConfirmCessation = () => {
+        updateBlock(block.id, { ...block, blockCeased: true });
+        setCessationModalOpen(false);
+    };
+    
+    const handleConfirmAdditionalDep = (isEligible) => {
+        updateBlock(block.id, { ...block, eligibleForAdditional: isEligible, additionalDepEligibility: tempEligibility });
+        setAdditionalDepModalOpen(false);
     };
 
     const handleAddAddition = () => {
@@ -1840,9 +1953,32 @@ const BlockDetailPanel = ({ block, details, updateBlock, onClose }) => {
         updateBlock(block.id, { ...block, additions: updatedAdditions });
     };
     
+    // IMPROVEMENT 1: Logic to disable sale value input
+    const canHaveSaleValue = (parseFloat(block.openingWDV) || 0) > 0 || (block.additions && block.additions.length > 0);
+    
     const inputFieldClass = "w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 border border-slate-300 dark:border-slate-700 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-300";
     
     return (
+        <>
+        <ConfirmationModal
+            isOpen={isCessationModalOpen}
+            onClose={() => setCessationModalOpen(false)}
+            onConfirm={handleConfirmCessation}
+            title="Confirm Block Cessation"
+            confirmText="Confirm Cessation"
+        >
+            <p>By marking this block as 'ceased', you are confirming that all assets within this block have been sold or disposed of during the financial year.</p>
+            <p className="mt-2 font-semibold">This action will calculate the final Short Term Capital Gain/Loss and set the closing WDV to zero.</p>
+        </ConfirmationModal>
+        
+        <AdditionalDepreciationModal
+            isOpen={isAdditionalDepModalOpen}
+            onClose={() => setAdditionalDepModalOpen(false)}
+            onConfirm={handleConfirmAdditionalDep}
+            eligibilityData={tempEligibility}
+            setEligibilityData={setTempEligibility}
+        />
+
         <div className="fixed inset-0 z-40 flex justify-end">
             <div className={`absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'}`} onClick={handleClose}></div>
             <div className={`relative bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl w-full md:max-w-2xl h-full shadow-2xl flex flex-col transition-transform duration-300 ease-in-out ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}>
@@ -1857,8 +1993,8 @@ const BlockDetailPanel = ({ block, details, updateBlock, onClose }) => {
                 <div className="flex-grow p-6 overflow-y-auto">
                     <div className="space-y-6">
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Block Type</label>
-                            <select name="blockType" value={block.blockType} onChange={handleInputChange} className={`${inputFieldClass} text-sm ${!block.blockType ? 'border-amber-500 ring-1 ring-amber-500' : ''}`}>
+                            <label htmlFor={`blockType-${block.id}`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Block Type</label>
+                            <select id={`blockType-${block.id}`} name="blockType" value={block.blockType} onChange={handleInputChange} className={`${inputFieldClass} text-sm ${!block.blockType ? 'border-amber-500 ring-1 ring-amber-500' : ''}`}>
                                 <option value="" disabled>-- Select Block Type --</option>
                                 {Object.entries(INCOME_TAX_BLOCKS).map(([key, val]) => (
                                     <option key={key} value={key}>{val.name} ({val.rate * 100}%)</option>
@@ -1868,8 +2004,8 @@ const BlockDetailPanel = ({ block, details, updateBlock, onClose }) => {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Opening WDV (₹)</label>
-                            <input type="number" name="openingWDV" value={block.openingWDV} onChange={handleInputChange} className={inputFieldClass} placeholder="e.g. 1000000" />
+                            <label htmlFor={`openingWDV-${block.id}`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Opening WDV (₹)</label>
+                            <input id={`openingWDV-${block.id}`} type="number" name="openingWDV" value={block.openingWDV} onChange={handleInputChange} className={inputFieldClass} placeholder="e.g. 1000000" />
                         </div>
                         
                         <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
@@ -1883,23 +2019,42 @@ const BlockDetailPanel = ({ block, details, updateBlock, onClose }) => {
                                  </div>
                              ))}
                              <div className="flex flex-col sm:flex-row items-center gap-2 mt-3">
-                                <input type="date" value={newAddition.date} onChange={(e) => setNewAddition(p => ({...p, date: e.target.value}))} className={`${inputFieldClass} flex-1`} min={FY_START_DATE} max={FY_END_DATE}/>
-                                <input type="number" value={newAddition.cost} onChange={(e) => setNewAddition(p => ({...p, cost: e.target.value}))} placeholder="Cost of Addition (₹)" className={`${inputFieldClass} flex-1`}/>
+                                <input type="date" aria-label="New addition date" value={newAddition.date} onChange={(e) => setNewAddition(p => ({...p, date: e.target.value}))} className={`${inputFieldClass} flex-1`} min={FY_START_DATE} max={FY_END_DATE}/>
+                                <input type="number" aria-label="New addition cost" value={newAddition.cost} onChange={(e) => setNewAddition(p => ({...p, cost: e.target.value}))} placeholder="Cost of Addition (₹)" className={`${inputFieldClass} flex-1`}/>
                                 <button onClick={handleAddAddition} disabled={!newAddition.date || !newAddition.cost} className="w-full sm:w-auto px-4 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition-colors flex-shrink-0 text-base shadow-md disabled:bg-indigo-400 disabled:cursor-not-allowed">Add</button>
                             </div>
-                            <div className="mt-4 flex items-center">
-                                <input type="checkbox" id={`eligibleForAdditional-${block.id}`} name="eligibleForAdditional" checked={block.eligibleForAdditional} onChange={handleInputChange} className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" />
-                                <label htmlFor={`eligibleForAdditional-${block.id}`} className="ml-2 block text-sm text-slate-900 dark:text-slate-200">
-                                    Eligible for Additional Depreciation
-                                </label>
+                            <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h5 className="font-semibold text-slate-800 dark:text-slate-200">Additional Depreciation</h5>
+                                        {!isBlockTypeEligibleForAdditionalDep && block.blockType ? (
+                                            <p className="text-sm text-amber-600 dark:text-amber-500">
+                                                Not applicable for this asset block type.
+                                            </p>
+                                        ) : (
+                                            <p className={`text-sm ${block.eligibleForAdditional ? 'text-green-600' : 'text-slate-500'}`}>
+                                                {block.eligibleForAdditional ? 'Eligibility confirmed' : 'Check eligibility for new additions'}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <button 
+                                        onClick={() => { setTempEligibility(block.additionalDepEligibility); setAdditionalDepModalOpen(true); }} 
+                                        className="px-4 py-2 text-sm font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg hover:bg-indigo-200 dark:hover:bg-indigo-900 transition-colors disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed"
+                                        disabled={!isBlockTypeEligibleForAdditionalDep}
+                                        aria-disabled={!isBlockTypeEligibleForAdditionalDep}
+                                    >
+                                        Checklist
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
                         <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
                             <h4 className="text-md font-semibold text-slate-800 dark:text-slate-100 mb-3">Disposals During The Year</h4>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Total Sale Proceeds (₹)</label>
-                                <input type="number" name="saleProceeds" value={block.saleProceeds} onChange={handleInputChange} className={inputFieldClass} placeholder="e.g., 150000" />
+                                <label htmlFor={`saleProceeds-${block.id}`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Total Sale Proceeds (₹)</label>
+                                <input id={`saleProceeds-${block.id}`} type="number" name="saleProceeds" value={block.saleProceeds} onChange={handleInputChange} className={inputFieldClass} placeholder="e.g., 150000" disabled={!canHaveSaleValue} />
+                                {!canHaveSaleValue && block.saleProceeds && <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">Sale proceeds are only applicable if there is an opening WDV or additions.</p>}
                             </div>
                             {parseFloat(block.saleProceeds) > 0 && (
                                 <div className="mt-4 flex items-center">
@@ -1944,5 +2099,6 @@ const BlockDetailPanel = ({ block, details, updateBlock, onClose }) => {
                 </div>
             </div>
         </div>
+        </>
     );
 };
