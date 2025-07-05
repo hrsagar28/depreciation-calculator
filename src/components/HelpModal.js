@@ -9,10 +9,10 @@ const HelpModal = ({ isOpen, onClose, topic }) => {
                     <p className="mb-4">This application helps you calculate asset depreciation according to two different standards: the <strong>Companies Act, 2013</strong> and the <strong>Income Tax Act, 1961</strong>.</p>
                     <p className="mb-2"><strong>Getting Started:</strong></p>
                     <ol className="list-decimal list-inside space-y-2 mb-4 pl-4">
-                        <li>Choose the calculation standard (Companies Act or Income Tax Act) on the main screen.</li>
+                        <li>Choose the calculation standard (Companies Act or Income Tax Act) or the Deferred Tax tool on the main screen.</li>
                         <li>Add your assets or asset blocks using the "+" button.</li>
-                        <li>Fill in the required details for each asset.</li>
-                        <li>The app will automatically calculate the depreciation and update the summary.</li>
+                        <li>Fill in the required details for each asset/block.</li>
+                        <li>The app will automatically calculate the depreciation and update the summaries.</li>
                     </ol>
                     <p>Click the <strong>?</strong> icon next to section titles for more specific help.</p>
                 </>
@@ -37,28 +37,26 @@ const HelpModal = ({ isOpen, onClose, topic }) => {
                  <>
                     <p className="mb-4">This section calculates depreciation for income tax purposes, which determines your tax liability.</p>
                     <ul className="list-disc list-inside space-y-2 mb-4 pl-4">
-                        <li><strong>Block of Assets:</strong> Depreciation is calculated on a "block" of similar assets, not individual ones. All assets in a block have the same depreciation rate.</li>
-                        <li><strong>Method:</strong> The Income Tax Act mandates the Written Down Value (WDV) method.</li>
-                        <li><strong>180-Day Rule:</strong> If an asset is purchased and put to use for less than 180 days in a financial year, only half of the normal depreciation rate is allowed for that year.</li>
+                        <li><strong>Block of Assets:</strong> Depreciation is calculated on a "block" of similar assets, not individual ones.</li>
+                        <li><strong>Method:</strong> The Income Tax Act mandates the Written Down Value (WDV) method for tax purposes.</li>
+                        <li><strong>180-Day Rule:</strong> If an asset is purchased and put to use for less than 180 days, only half of the normal depreciation is allowed for that year.</li>
                      </ul>
                 </>
             )
         },
-
-deferredTax: {
-        title: "Help: Deferred Tax (AS 22 / Ind AS 12)",
-        content: (
-             <>
-                <p className="mb-4">Deferred tax arises due to **timing differences** between the profit calculated for accounting purposes (Book Profit) and the profit calculated for tax purposes (Taxable Profit).</p>
-                <ul className="list-disc list-inside space-y-2 mb-4 pl-4">
-                    <li><strong>Deferred Tax Asset (DTA):</strong> Represents a future tax benefit. It is created when the Written Down Value (WDV) for tax purposes is **higher** than the WDV for book purposes.</li>
-                    <li><strong>Deferred Tax Liability (DTL):</strong> Represents a future tax obligation. It is created when the WDV for book purposes is **higher** than the WDV for tax purposes.</li>
-                    <li><strong>Movement:** The change in the DTA/DTL balance during the year is charged or credited to the Profit & Loss statement as "Deferred Tax Expense/Income".</li>
-                 </ul>
-            </>
-        )
-    },
-
+        deferredTax: {
+            title: "Help: Deferred Tax (AS 22 / Ind AS 12)",
+            content: (
+                 <>
+                    <p className="mb-4">Deferred tax arises due to <strong>timing differences</strong> between the profit calculated for accounting purposes (Book Profit) and the profit calculated for tax purposes (Taxable Profit).</p>
+                    <ul className="list-disc list-inside space-y-2 mb-4 pl-4">
+                        <li><strong>Deferred Tax Asset (DTA):</strong> Represents a future tax benefit. It is created when the Written Down Value (WDV) for tax purposes is <strong>higher</strong> than the WDV for book purposes.</li>
+                        <li><strong>Deferred Tax Liability (DTL):</strong> Represents a future tax obligation. It is created when the WDV for book purposes is <strong>higher</strong> than the WDV for tax purposes.</li>
+                        <li><strong>Movement:</strong> The change in the DTA/DTL balance during the year is charged or credited to the Profit & Loss statement as "Deferred Tax Expense/Income".</li>
+                     </ul>
+                </>
+            )
+        },
         generalTerms: {
             title: "Glossary of Terms",
             content: (
@@ -91,6 +89,7 @@ deferredTax: {
             )
         }
     };
+
     const activeContent = helpContent[topic] || helpContent.introduction;
 
     useEffect(() => {
@@ -101,6 +100,7 @@ deferredTax: {
         window.addEventListener('keydown', handleEsc);
         return () => window.removeEventListener('keydown', handleEsc);
     }, [isOpen, onClose]);
+
     if (!isOpen) return null;
 
     return (
