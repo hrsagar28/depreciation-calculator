@@ -486,7 +486,7 @@ export default function App() {
     </div>
     <div className="mt-4 sm:mt-0 flex justify-center sm:justify-end gap-2">
         <button onClick={() => setAct(null)} className="px-4 py-2 bg-gray-600 text-white font-semibold rounded-lg shadow-sm hover:bg-gray-700 transition-colors text-sm">Change Tool</button>
-        <button onClick={() => openHelpModal(act === 'companies' ? 'companiesAct' : 'incomeTaxAct')} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-sm hover:bg-blue-700 transition-colors text-sm">Help</button>
+        <button onClick={() => openHelpModal(act === 'companies' ? 'companiesAct' : act === 'income_tax' ? 'incomeTaxAct' : 'deferredTax')} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-sm hover:bg-blue-700 transition-colors text-sm">Help</button>
         <button onClick={toggleTheme} className="px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold rounded-lg shadow-sm hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors text-sm">
             {theme === 'light' ? 'Dark' : 'Light'}
         </button>

@@ -44,6 +44,21 @@ const HelpModal = ({ isOpen, onClose, topic }) => {
                 </>
             )
         },
+
+deferredTax: {
+        title: "Help: Deferred Tax (AS 22 / Ind AS 12)",
+        content: (
+             <>
+                <p className="mb-4">Deferred tax arises due to **timing differences** between the profit calculated for accounting purposes (Book Profit) and the profit calculated for tax purposes (Taxable Profit).</p>
+                <ul className="list-disc list-inside space-y-2 mb-4 pl-4">
+                    <li><strong>Deferred Tax Asset (DTA):</strong> Represents a future tax benefit. It is created when the Written Down Value (WDV) for tax purposes is **higher** than the WDV for book purposes.</li>
+                    <li><strong>Deferred Tax Liability (DTL):</strong> Represents a future tax obligation. It is created when the WDV for book purposes is **higher** than the WDV for tax purposes.</li>
+                    <li><strong>Movement:** The change in the DTA/DTL balance during the year is charged or credited to the Profit & Loss statement as "Deferred Tax Expense/Income".</li>
+                 </ul>
+            </>
+        )
+    },
+
         generalTerms: {
             title: "Glossary of Terms",
             content: (
