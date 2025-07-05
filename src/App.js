@@ -29,6 +29,7 @@ const INCOME_TAX_BLOCKS = {
   'furniture_fittings': { name: 'Furniture & Fittings', rate: 0.10 },
   'machinery_general': { name: 'Plant & Machinery (General)', rate: 0.15 },
   'motor_cars': { name: 'Motor Cars', rate: 0.15 },
+  'office_equipment': { name: 'Office Equipment', rate: 0.15 },
   'ships_vessels': { name: 'Ships, Vessels', rate: 0.20 },
   'intangibles': { name: 'Intangible Assets (Patents, Copyrights)', rate: 0.25 },
   'motor_buses_lorries_taxis_hire': { name: 'Motor Buses, Lorries & Taxis (Hiring Business)', rate: 0.30 },
@@ -47,7 +48,7 @@ const EXCLUDED_BLOCK_TYPES_FOR_ADDITIONAL_DEP = [
     'motor_cars',
     'motor_buses_lorries_taxis_hire',
     'aircraft',
-    'intangibles', 
+    'intangibles',
     'building_residential',
     'building_general',
     'building_temporary',
@@ -96,14 +97,14 @@ const getDaysUsed = (purchaseDateStr, disposalDateStr = null) => {
             }
         }
     }
-    
+
     const daysInYear = getDaysInFY(effectiveStartDate);
     if (effectiveEndDate < effectiveStartDate) return { daysUsed: 0, daysInYear };
-    
+
     const diffTime = effectiveEndDate - effectiveStartDate;
     if (diffTime < 0) return { daysUsed: 0, daysInYear };
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
-    
+
     return { daysUsed: Math.max(0, diffDays), daysInYear };
 };
 
@@ -129,11 +130,10 @@ const calculateCompaniesActDepreciation = (asset, method) => {
     const openingAccumulatedDepreciation = Math.max(0, parseFloat(financialData.openingAccumulatedDepreciation) || 0);
     const residualValue = Math.max(0, parseFloat(financialData.residualValue) || 0);
     const grossBlockAdditions = asset.additions.reduce((sum, add) => sum + (Math.max(0, parseFloat(add.cost)) || 0), 0);
-    
-    // IMPROVEMENT 1: If no opening block or additions, sale value is irrelevant.
+
     const hasValueAtStart = openingGrossBlock > 0 || grossBlockAdditions > 0;
     const saleValue = hasValueAtStart ? Math.max(0, parseFloat(asset.saleValue) || 0) : 0;
-    
+
     if (!hasValueAtStart) {
         return { depreciationForYear: 0, closingWDV: 0, workings: [], profitOrLoss: 0, openingGrossBlock: 0, grossBlockAdditions: 0, disposalsCost: 0, closingGrossBlock: 0, openingAccumulatedDepreciation: 0, closingAccumulatedDepreciation: 0, openingWDV: 0, saleValue: 0 };
     }
@@ -141,7 +141,7 @@ const calculateCompaniesActDepreciation = (asset, method) => {
     const isDisposed = !!asset.disposalDate;
     const additionsBeforeDisposal = asset.additions.filter(add => !isDisposed || (add.date && new Date(add.date) <= new Date(asset.disposalDate)));
     const totalAdditionsCostBeforeDisposal = additionsBeforeDisposal.reduce((sum, add) => sum + (Math.max(0, parseFloat(add.cost)) || 0), 0);
-    
+
     let depreciationForYear = 0;
     let workings = [];
     let calculatedRate = 0;
@@ -154,7 +154,7 @@ const calculateCompaniesActDepreciation = (asset, method) => {
             const depreciableBase = round(openingGrossBlock - residualValue);
             const maxAllowableDepOpening = Math.max(0, round(openingWDV - residualValue));
             if (depreciableBase > 0 && maxAllowableDepOpening > 0) {
-                const { daysUsed, daysInYear } = getDaysUsed(asset.purchaseDate, asset.disposalDate); 
+                const { daysUsed, daysInYear } = getDaysUsed(asset.purchaseDate, asset.disposalDate);
                 const annualDep = round(depreciableBase / usefulLife);
                 const depOnOpening = round(Math.min(annualDep * (daysUsed / daysInYear), maxAllowableDepOpening));
                 depreciationForYear += depOnOpening;
@@ -219,7 +219,7 @@ const calculateIncomeTaxDepreciation = (block) => {
 
     let additionsFullRate = 0;
     let additionsHalfRate = 0;
-    
+
     block.additions.forEach(add => {
         const cost = Math.max(0, parseFloat(add.cost) || 0);
         if(cost > 0 && add.date) {
@@ -235,7 +235,6 @@ const calculateIncomeTaxDepreciation = (block) => {
     additionsHalfRate = round(additionsHalfRate);
     const totalAdditions = round(additionsFullRate + additionsHalfRate);
 
-    // IMPROVEMENT 1: If no opening block or additions, sale value is irrelevant.
     const hasValueAtStart = openingWDV > 0 || totalAdditions > 0;
     const saleProceeds = hasValueAtStart ? Math.max(0, parseFloat(block.saleProceeds) || 0) : 0;
 
@@ -246,7 +245,7 @@ const calculateIncomeTaxDepreciation = (block) => {
     let shortTermCapitalGainLoss = 0;
     let closingWDV = 0;
     let workings = [];
-    
+
     if (!block.blockType) {
         return { openingWDV, additions: totalAdditions, saleValue: saleProceeds, wdvForDep: wdvBeforeDep, depreciationForYear: 0, closingWDV: wdvBeforeDep, shortTermCapitalGainLoss: 0, workings: [{description: "Select a block type to calculate depreciation.", calculation: "", amount: 0}] };
     }
@@ -267,7 +266,7 @@ const calculateIncomeTaxDepreciation = (block) => {
         const depOnOpening = round(Math.max(0, wdvForOpeningDep * rate));
 
         depreciationForYear = round(depOnOpening + depOnAdditionsFull + depOnAdditionsHalf);
-        
+
         if (depOnOpening > 0) workings.push({ description: 'Dep on Opening WDV balance', calculation: `${formatCurrency(wdvForOpeningDep)} × ${rate * 100}%`, amount: depOnOpening });
         if (depOnAdditionsFull > 0) workings.push({ description: 'Dep on Additions (>= 180 days)', calculation: `${formatCurrency(additionsFullRate)} × ${rate * 100}%`, amount: depOnAdditionsFull });
         if (depOnAdditionsHalf > 0) workings.push({ description: 'Dep on Additions (< 180 days)', calculation: `${formatCurrency(additionsHalfRate)} × ${(rate / 2) * 100}%`, amount: depOnAdditionsHalf });
@@ -293,7 +292,7 @@ const calculateIncomeTaxDepreciation = (block) => {
             amount: -shortTermCapitalGainLoss
         });
     }
-    
+
     return {
         openingWDV,
         additions: totalAdditions,
@@ -309,7 +308,117 @@ const calculateIncomeTaxDepreciation = (block) => {
 
 // --- UI Components ---
 
-// IMPROVEMENT 3: Enhanced Tooltip with proper ARIA attributes
+const HelpModal = ({ isOpen, onClose, topic }) => {
+    const helpContent = {
+        introduction: {
+            title: "Welcome to the Depreciation Calculator!",
+            content: (
+                <>
+                    <p className="mb-4">This application helps you calculate asset depreciation according to two different standards: the <strong>Companies Act, 2013</strong> and the <strong>Income Tax Act, 1961</strong>.</p>
+                    <p className="mb-2"><strong>Getting Started:</strong></p>
+                    <ol className="list-decimal list-inside space-y-2 mb-4 pl-4">
+                        <li>Choose the calculation standard (Companies Act or Income Tax Act) on the main screen.</li>
+                        <li>Add your assets or asset blocks using the "+" button.</li>
+                        <li>Fill in the required details for each asset.</li>
+                        <li>The app will automatically calculate the depreciation and update the summary.</li>
+                    </ol>
+                    <p>Click the <strong>?</strong> icon next to section titles for more specific help.</p>
+                </>
+            )
+        },
+        companiesAct: {
+            title: "Help: Companies Act, 2013",
+            content: (
+                <>
+                    <p className="mb-4">This section calculates depreciation for financial reporting purposes, as required by the Companies Act.</p>
+                    <ul className="list-disc list-inside space-y-2 mb-4 pl-4">
+                        <li><strong>Individual Assets:</strong> Depreciation is calculated for each asset individually.</li>
+                        <li><strong>Methods:</strong> You can choose between the Straight-Line Method (SLM) and the Written Down Value (WDV) method.</li>
+                        <li><strong>Useful Life:</strong> The calculation is based on the useful life of an asset as prescribed in Schedule II of the Companies Act.</li>
+                    </ul>
+                </>
+            )
+        },
+        incomeTaxAct: {
+            title: "Help: Income Tax Act, 1961",
+            content: (
+                 <>
+                    <p className="mb-4">This section calculates depreciation for income tax purposes, which determines your tax liability.</p>
+                    <ul className="list-disc list-inside space-y-2 mb-4 pl-4">
+                        <li><strong>Block of Assets:</strong> Depreciation is calculated on a "block" of similar assets, not individual ones. All assets in a block have the same depreciation rate.</li>
+                        <li><strong>Method:</strong> The Income Tax Act mandates the Written Down Value (WDV) method.</li>
+                        <li><strong>180-Day Rule:</strong> If an asset is purchased and put to use for less than 180 days in a financial year, only half of the normal depreciation rate is allowed for that year.</li>
+                    </ul>
+                </>
+            )
+        },
+        generalTerms: {
+            title: "Glossary of Terms",
+            content: (
+                 <div className="space-y-4">
+                    <div>
+                        <h4 className="font-semibold text-slate-800 dark:text-slate-100">Depreciation</h4>
+                        <p>The reduction in the value of an asset over time, due to use, wear and tear, or obsolescence.</p>
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-slate-800 dark:text-slate-100">Written Down Value (WDV)</h4>
+                        <p>The value of an asset after deducting the depreciation charged in previous years. It's also known as Book Value or Net Block.</p>
+                    </div>
+                     <div>
+                        <h4 className="font-semibold text-slate-800 dark:text-slate-100">Straight-Line Method (SLM)</h4>
+                        <p>A method where the depreciation amount is the same for every year of the asset's useful life.</p>
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-slate-800 dark:text-slate-100">Gross Block</h4>
+                        <p>The original purchase cost of an asset.</p>
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-slate-800 dark:text-slate-100">Accumulated Depreciation</h4>
+                        <p>The total depreciation charged on an asset from the date of purchase until the beginning of the current financial year.</p>
+                    </div>
+                     <div>
+                        <h4 className="font-semibold text-slate-800 dark:text-slate-100">Residual Value</h4>
+                        <p>The estimated scrap value of an asset at the end of its useful life.</p>
+                    </div>
+                </div>
+            )
+        }
+    };
+
+    const activeContent = helpContent[topic] || helpContent.introduction;
+
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleEsc = (event) => {
+            if (event.keyCode === 27) onClose();
+        };
+        window.addEventListener('keydown', handleEsc);
+        return () => window.removeEventListener('keydown', handleEsc);
+    }, [isOpen, onClose]);
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-center items-center p-4" onClick={onClose}>
+            <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl m-4" onClick={e => e.stopPropagation()}>
+                <header className="p-5 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                    <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">{activeContent.title}</h2>
+                    <button onClick={onClose} className="p-2 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" aria-label="Close help">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </header>
+                <div className="p-6 text-slate-600 dark:text-slate-300 text-sm leading-relaxed max-h-[60vh] overflow-y-auto">
+                    {activeContent.content}
+                </div>
+                 <footer className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-b-2xl text-center">
+                     <button onClick={() => onClose()} className="px-6 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors">Got it!</button>
+                 </footer>
+            </div>
+        </div>
+    );
+};
+
+
 const Tooltip = ({ text, children, id }) => (
     <div className="relative flex items-center group">
         {React.cloneElement(children, { 'aria-describedby': id })}
@@ -324,7 +433,7 @@ const Tooltip = ({ text, children, id }) => (
     </div>
 );
 
-const AssetCard = ({ asset, details, onSelect, onEdit }) => {
+const AssetCard = React.memo(({ asset, details, onSelect, onEdit }) => {
     return (
         <div
             onClick={onEdit}
@@ -347,9 +456,9 @@ const AssetCard = ({ asset, details, onSelect, onEdit }) => {
             </div>
         </div>
     );
-};
+});
 
-const BlockCard = ({ block, details, onSelect, onEdit }) => {
+const BlockCard = React.memo(({ block, details, onSelect, onEdit }) => {
     return (
         <div
             onClick={onEdit}
@@ -372,7 +481,7 @@ const BlockCard = ({ block, details, onSelect, onEdit }) => {
             </div>
         </div>
     );
-};
+});
 
 const AssetDetailPanel = ({ asset, details, updateAsset, method, act, onClose }) => {
     const [newAddition, setNewAddition] = useState({ date: '', cost: '', residualValue: '' });
@@ -388,8 +497,7 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, act, onClose })
     const isAdditionDateInvalid = newAddition.date && !isValidDate(newAddition.date);
     const isResidualValueEmptyForSLM = method === 'SLM' && financialData.residualValue === '';
     const isDisposalDateInvalid = asset.disposalDate && asset.purchaseDate && new Date(asset.disposalDate) < new Date(asset.purchaseDate);
-    
-    // IMPROVEMENT 1: Logic to disable sale value input
+
     const canHaveSaleValue = (parseFloat(financialData.openingGrossBlock) || 0) > 0 || asset.additions.length > 0;
 
     useEffect(() => {
@@ -399,9 +507,9 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, act, onClose })
 
     const handleClose = () => {
         setIsVisible(false);
-        setTimeout(onClose, 300); 
+        setTimeout(onClose, 300);
     };
-    
+
     const handleInputChange = (e) => {
         const { name, value, type } = e.target;
         let sanitizedValue = value;
@@ -412,7 +520,7 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, act, onClose })
                  return;
             }
         }
-        
+
         const updatedAsset = { ...asset };
         if (['openingGrossBlock', 'openingAccumulatedDepreciation', 'residualValue'].includes(name)) {
             updatedAsset.companiesAct = { ...updatedAsset.companiesAct, [name]: sanitizedValue };
@@ -431,10 +539,10 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, act, onClose })
     const removeAddition = (index) => {
         updateAsset(asset.id, { ...asset, additions: asset.additions.filter((_, i) => i !== index) });
     };
-    
+
     const inputFieldClass = "w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 border border-slate-300 dark:border-slate-700 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-300";
     const isDisposed = !!asset.disposalDate;
-    
+
     return (
         <div className="fixed inset-0 z-40 flex justify-end">
             <div className={`absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'}`} onClick={handleClose}></div>
@@ -499,7 +607,7 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, act, onClose })
                                 </div>
                             )}
                         </div>
-                        
+
                         <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
                             <h4 className="text-md font-semibold text-slate-800 dark:text-slate-100 mb-3">Additions During The Year</h4>
                              {asset.additions.map((add, index) => {
@@ -519,12 +627,12 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, act, onClose })
                                 <input type="number" aria-label="New addition cost" value={newAddition.cost} onChange={(e) => setNewAddition(p => ({...p, cost: e.target.value}))} placeholder="Cost of Addition (₹)" className={`${inputFieldClass} flex-1`}/>
                                 {method === 'SLM' && (
                                    <Tooltip text="Optional: Residual value for this specific addition. Defaults to 0 if empty." id={`tooltip-add-rv-${asset.id}`}>
-                                    <input 
-                                        type="number" 
+                                    <input
+                                        type="number"
                                         aria-label="New addition residual value"
-                                        value={newAddition.residualValue} 
-                                        onChange={(e) => setNewAddition(p => ({...p, residualValue: e.target.value}))} 
-                                        placeholder="Residual Value (₹)" 
+                                        value={newAddition.residualValue}
+                                        onChange={(e) => setNewAddition(p => ({...p, residualValue: e.target.value}))}
+                                        placeholder="Residual Value (₹)"
                                         className={`${inputFieldClass} flex-1`}
                                     />
                                    </Tooltip>
@@ -877,7 +985,7 @@ const PrintLayout = ({ calculationResults, method, FY_LABEL, summaryData, act })
            <section>
                 <h2 className="print-section-title">Asset Details</h2>
                 {calculationResults.map(result => (
-                    <PrintAssetDetail 
+                    <PrintAssetDetail
                         key={`print-${result.id}`}
                         asset={result.asset}
                         details={result.details}
@@ -894,7 +1002,7 @@ const PrintLayout = ({ calculationResults, method, FY_LABEL, summaryData, act })
 
 const SummaryReport = ({ summaryData, onFilterChange, showToast, filterType, theme, act, setAct }) => {
     const [isExpanded, setIsExpanded] = useState(true);
-    
+
     const chartData = useMemo(() => {
         const colors = ['#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#f43f5e', '#64748b', '#d946ef', '#22c55e', '#f97316', '#84cc16'];
         return Object.values(summaryData.byType).map((typeData, index) => ({
@@ -904,7 +1012,7 @@ const SummaryReport = ({ summaryData, onFilterChange, showToast, filterType, the
             fill: colors[index % colors.length]
         })).filter(item => item.value > 0);
     }, [summaryData.byType]);
-    
+
     const handleExport = () => {
        if (!window.Papa) {
            showToast("Export feature unavailable. Please check your internet connection and refresh.");
@@ -928,7 +1036,7 @@ const SummaryReport = ({ summaryData, onFilterChange, showToast, filterType, the
            ]));
            totalsRow = ["TOTAL", summaryData.totals.openingWDV, summaryData.totals.additions, summaryData.totals.saleValue, summaryData.totals.wdvForDep, summaryData.totals.depreciationForYear, summaryData.totals.closingNetBlock, summaryData.totals.shortTermCapitalGainLoss];
        }
-       
+
 
        const csv = window.Papa.unparse({ fields: header, data: [...rows, totalsRow] });
 
@@ -952,7 +1060,7 @@ const SummaryReport = ({ summaryData, onFilterChange, showToast, filterType, the
     const hasChartData = chartData.length > 0;
     const legendColor = theme === 'dark' ? '#f1f5f9' : '#334155';
     const tooltipStyle = {
-        contentStyle: { 
+        contentStyle: {
             backgroundColor: theme === 'dark' ? '#1e293b' : '#ffffff',
             borderColor: theme === 'dark' ? '#334155' : '#cccccc',
             borderRadius: '0.75rem'
@@ -1072,7 +1180,10 @@ const SummaryReport = ({ summaryData, onFilterChange, showToast, filterType, the
                           </div>
                            <div className="mt-4 p-3 bg-blue-50/50 dark:bg-blue-900/30 border-l-4 border-blue-500 rounded-r-lg">
                                <p className="text-xs text-blue-800 dark:text-blue-200">
-                                   <strong>Note:</strong> {act === 'companies' ? "The calculations above are based on a single-asset accounting model as per Ind AS 16." : "The calculations are based on Income Tax rules. Depreciation for additions is calculated at a half rate if used for less than 180 days."} For tax purposes, where depreciation is calculated on a 'block of assets', please aggregate the results from this schedule manually.
+                                   <strong>Note:</strong> {act === 'companies'
+                                       ? "The calculations above are based on a single-asset accounting model as per Ind AS 16."
+                                       : "The calculations are based on Income Tax rules, following the block of assets concept. Depreciation for additions is calculated at a half rate if used for less than 180 days."
+                                   }
                                </p>
                            </div>
                       </div>
@@ -1081,13 +1192,13 @@ const SummaryReport = ({ summaryData, onFilterChange, showToast, filterType, the
                               <h3 className="font-bold text-lg text-slate-700 dark:text-slate-200 mb-4 text-center">Depreciation by Asset Type</h3>
                                <ResponsiveContainer width="100%" height={300}>
                                   <PieChart>
-                                    <Pie 
-                                      data={chartData} 
-                                      dataKey="value" 
-                                      nameKey="name" 
-                                      cx="50%" 
-                                      cy="50%" 
-                                      outerRadius={90} 
+                                    <Pie
+                                      data={chartData}
+                                      dataKey="value"
+                                      nameKey="name"
+                                      cx="50%"
+                                      cy="50%"
+                                      outerRadius={90}
                                       labelLine={false}
                                       onClick={handlePieClick}
                                       label={({ name, percent, x, y, fill }) => percent > 0.05 ? <text x={x} y={y} fill={"#fff"} textAnchor="middle" dominantBaseline="central" className="text-xs font-bold">{`${(percent * 100).toFixed(0)}%`}</text> : null }
@@ -1129,16 +1240,14 @@ const EmptyState = ({ addAsset, act }) => (
     </div>
 );
 
-const ActSelectionScreen = ({ onSelectCalculationMode, theme, toggleTheme }) => {
-    // IMPROVEMENT 4: UI Consistency
-    // The buttons here are intentionally different to signify distinct paths.
-    // The consistency is applied *within* each calculator path.
+const ActSelectionScreen = ({ onSelectCalculationMode, theme, toggleTheme, openHelpModal }) => {
     return (
         <div className={theme}>
             <div className="bg-gradient-to-br from-slate-50 to-slate-200 dark:from-slate-900 dark:to-slate-950 min-h-screen text-slate-800 font-sans flex flex-col justify-center items-center p-4">
-                 <div className="absolute top-4 right-4">
+                 <div className="absolute top-4 right-4 flex gap-2">
+                    <button onClick={() => openHelpModal('introduction')} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-sm hover:bg-blue-700 transition-colors text-sm">Help</button>
                     <button onClick={toggleTheme} className="px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold rounded-lg shadow-sm hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors text-sm">
-                        {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
+                        {theme === 'light' ? 'Dark' : 'Light'}
                     </button>
                 </div>
                 <div className="text-center mb-12">
@@ -1164,6 +1273,11 @@ const ActSelectionScreen = ({ onSelectCalculationMode, theme, toggleTheme }) => 
                                 <p className="text-sm mt-1 opacity-80">Calculate on block of assets using WDV.</p>
                             </button>
                         </div>
+                    </div>
+                     <div className="text-center mt-8">
+                        <button onClick={() => openHelpModal('generalTerms')} className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline">
+                            Confused by the terms? Click here for a glossary.
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1271,562 +1385,6 @@ const AutomatedTests = ({ isVisible, onClose }) => {
 };
 // --- END: Automated Test Component ---
 
-
-export default function App() {
-    const [isLoading, setIsLoading] = useState(true);
-    const [theme, setTheme] = useState('light');
-    const [act, setAct] = useState(null); // 'companies' or 'income_tax'
-    const [method, setMethod] = useState('WDV');
-    
-    // State for Companies Act
-    const [assets, setAssets] = useState([]);
-    
-    // State for Income Tax Act
-    const [assetBlocks, setAssetBlocks] = useState([]);
-
-    const [isAssetDeleteModalOpen, setIsAssetDeleteModalOpen] = useState(false);
-    const [isBlockDeleteModalOpen, setIsBlockDeleteModalOpen] = useState(false);
-    const [isTestRunnerVisible, setIsTestRunnerVisible] = useState(false);
-    const [toast, setToast] = useState({ message: '', show: false, onUndo: null });
-    const [filterType, setFilterType] = useState(null);
-    const [selectedAssetId, setSelectedAssetId] = useState(null);
-    const [selectedBlockId, setSelectedBlockId] = useState(null);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [blockSearchTerm, setBlockSearchTerm] = useState('');
-
-    // Check for test mode using URL query parameter
-    const isTestMode = useMemo(() => {
-        if (typeof window !== 'undefined') {
-            const params = new URLSearchParams(window.location.search);
-            return params.get('mode') === 'test';
-        }
-        return false;
-    }, []);
-
-    const debouncedAssets = useDebounce(assets, 300);
-    const debouncedAssetBlocks = useDebounce(assetBlocks, 300);
-    const debouncedMethod = useDebounce(method, 300);
-    const debouncedTheme = useDebounce(theme, 300);
-    const debouncedAct = useDebounce(act, 300);
-
-    const showToast = useCallback((message, onUndo = null) => {
-        setToast({ message, show: true, onUndo });
-    },[]);
-    
-    const hideToast = useCallback(() => {
-        setToast(prev => ({ ...prev, show: false, onUndo: null }));
-    }, []);
-    
-    const saveState = useCallback((stateToSave) => {
-        try {
-            const dataToSave = {
-                assets: stateToSave.assets.map(({ isNew, ...rest }) => rest),
-                assetBlocks: stateToSave.assetBlocks.map(({ isNew, ...rest }) => rest),
-                method: stateToSave.method,
-                act: stateToSave.act,
-            };
-            localStorage.setItem('depreciationAppStateV9', JSON.stringify(dataToSave));
-            localStorage.setItem('depreciationAppTheme', stateToSave.theme);
-        } catch (error) {
-            console.error("Failed to save state to localStorage", error);
-            showToast("Error: Could not save data.");
-        }
-    }, [showToast]);
-
-    useEffect(() => {
-        const papaScriptId = 'papaparse-script';
-        if (!document.getElementById(papaScriptId)) {
-            const script = document.createElement('script');
-            script.id = papaScriptId;
-            script.src = "https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js";
-            script.async = true;
-            script.onload = () => console.log('PapaParse loaded');
-            script.onerror = () => showToast("Export feature unavailable. Please check your internet connection and refresh.");
-            document.head.appendChild(script);
-        }
-    }, [showToast]);
-
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            try {
-                const savedState = localStorage.getItem('depreciationAppStateV9');
-                const savedTheme = localStorage.getItem('depreciationAppTheme');
-                setTheme(savedTheme || 'light');
-
-                if (savedState) {
-                    const { assets: savedAssets, assetBlocks: savedBlocks, method: savedMethod, act: savedAct } = JSON.parse(savedState);
-                    setAssets(savedAssets?.map(a => ({...a, isSelected: false, isNew: false })) || []);
-                    setAssetBlocks(savedBlocks?.map(b => ({...b, isSelected: false, isNew: false })) || []);
-                    setMethod(savedMethod || 'WDV');
-                    setAct(savedAct || null);
-                } else {
-                     setAssets([]); 
-                     setAssetBlocks([]);
-                }
-            } catch (error) {
-                console.error("Failed to load state from localStorage", error);
-                 setAssets([]);
-                 setAssetBlocks([]);
-            }
-            setIsLoading(false);
-        }, 1000); 
-        return () => clearTimeout(timer);
-    }, []);
-
-    useEffect(() => {
-        if (!isLoading) {
-            saveState({ assets: debouncedAssets, assetBlocks: debouncedAssetBlocks, method: debouncedMethod, theme: debouncedTheme, act: debouncedAct });
-        }
-    }, [debouncedAssets, debouncedAssetBlocks, debouncedMethod, debouncedTheme, debouncedAct, isLoading, saveState]);
-    
-    const toggleTheme = () => {
-        setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
-    };
-
-    const handleSelectAct = (selectedAct) => {
-        setAct(selectedAct);
-        setFilterType(null);
-        setSearchTerm('');
-        setBlockSearchTerm('');
-    };
-    
-    const addAsset = useCallback(() => {
-        const newId = `asset-${Date.now()}`;
-        const newAsset = { 
-            id: newId, name: '', 
-            additions: [], 
-            assetType: '', isNew: true, isSelected: false,
-            purchaseDate: '', disposalDate: '', saleValue: '',
-            companiesAct: { openingGrossBlock: '', openingAccumulatedDepreciation: '', residualValue: '' },
-        };
-        const newAssets = [newAsset, ...assets];
-        setAssets(newAssets);
-        setSelectedAssetId(newId);
-        setFilterType(null);
-        showToast("Asset added successfully!");
-    }, [assets, showToast]);
-
-    const addBlock = useCallback(() => {
-        const newId = `block-${Date.now()}`;
-        const newBlock = {
-            id: newId,
-            blockType: '',
-            name: 'New Block',
-            rate: 0,
-            openingWDV: '',
-            additions: [],
-            saleProceeds: '',
-            blockCeased: false,
-            eligibleForAdditional: false,
-            additionalDepEligibility: {
-                isNewPlantMachinery: false,
-                isManufacturing: false,
-                isNotExcluded: false,
-            },
-            isSelected: false,
-            isNew: true,
-        };
-        const newBlocks = [newBlock, ...assetBlocks];
-        setAssetBlocks(newBlocks);
-        setSelectedBlockId(newId);
-        showToast("New block added. Please select a block type.");
-    }, [assetBlocks, showToast]);
-    
-    const updateAsset = useCallback((id, updatedData) => {
-        setAssets(prev => prev.map(asset => (asset.id === id ? updatedData : asset)));
-    }, []);
-
-    const updateBlock = useCallback((id, updatedData) => {
-        setAssetBlocks(prev => prev.map(block => (block.id === id ? updatedData : block)));
-    }, []);
-    
-    const handleSelectAsset = useCallback((id, isSelected) => {
-        setAssets(prev => prev.map(asset => asset.id === id ? {...asset, isSelected} : asset));
-    }, []);
-
-    const handleSelectBlock = useCallback((id, isSelected) => {
-        setAssetBlocks(prev => prev.map(block => block.id === id ? {...block, isSelected} : block));
-    }, []);
-    
-    const handleDeleteAssetRequest = () => {
-        if (selectedAssetCount > 0) {
-            setIsAssetDeleteModalOpen(true);
-        }
-    };
-
-    const handleDeleteBlockRequest = () => {
-        if (selectedBlockCount > 0) {
-            setIsBlockDeleteModalOpen(true);
-        }
-    };
-
-    const handleConfirmAssetDelete = useCallback(() => {
-      const originalAssets = [...assets];
-      const assetsToDelete = assets.filter(a => a.isSelected);
-      const newAssets = assets.filter(asset => !asset.isSelected);
-      
-      setAssets(newAssets);
-      setIsAssetDeleteModalOpen(false);
-      setSelectedAssetId(null);
-      
-      const undo = () => {
-          setAssets(originalAssets);
-          hideToast();
-          showToast("Deletion undone.");
-      };
-      showToast(`${assetsToDelete.length} asset(s) deleted.`, undo);
-    }, [assets, showToast, hideToast]);
-
-    const handleConfirmBlockDelete = useCallback(() => {
-      const originalBlocks = [...assetBlocks];
-      const blocksToDelete = assetBlocks.filter(b => b.isSelected);
-      const newBlocks = assetBlocks.filter(block => !block.isSelected);
-      
-      setAssetBlocks(newBlocks);
-      setIsBlockDeleteModalOpen(false);
-      setSelectedBlockId(null);
-      
-      const undo = () => {
-          setAssetBlocks(originalBlocks);
-          hideToast();
-          showToast("Deletion undone.");
-      };
-      showToast(`${blocksToDelete.length} block(s) deleted.`, undo);
-    }, [assetBlocks, showToast, hideToast]);
-    
-    const handleMethodChange = (newMethod) => {
-        if (method !== newMethod && assets.some(a => a.companiesAct.openingGrossBlock || a.additions.length > 0)) {
-            showToast("Method switched. Please review assets as Residual Value requirements may have changed.");
-        }
-        setMethod(newMethod);
-    };
-    
-    const calculationResults = useMemo(() => {
-        if (act === 'companies') {
-            return assets.map(asset => ({
-                id: asset.id,
-                asset,
-                details: calculateCompaniesActDepreciation(asset, method)
-            }));
-        }
-        if (act === 'income_tax') {
-            return assetBlocks.map(block => ({
-                id: block.id,
-                block,
-                details: calculateIncomeTaxDepreciation(block)
-            }));
-        }
-        return [];
-    }, [assets, assetBlocks, method, act]);
-
-    const summaryData = useMemo(() => {
-        const summary = { byType: {} };
-        
-        if (act === 'companies') {
-            const initialTypeSummary = { 
-                openingGrossBlock: 0, additions: 0, disposalsCost: 0, closingGrossBlock: 0,
-                openingAccumulatedDepreciation: 0, openingNetBlock: 0, depreciationForYear: 0,
-                closingAccumulatedDepreciation: 0, closingNetBlock: 0 
-            };
-            calculationResults.forEach(({asset, details}) => {
-                const type = asset.assetType || 'unclassified';
-                if (!summary.byType[type]) {
-                    summary.byType[type] = { 
-                        ...initialTypeSummary,
-                        name: type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-                        internalName: type,
-                    };
-                }
-                const calc = details;
-                summary.byType[type].openingGrossBlock += calc.openingGrossBlock;
-                summary.byType[type].additions += calc.grossBlockAdditions;
-                summary.byType[type].disposalsCost += calc.disposalsCost;
-                summary.byType[type].closingGrossBlock += calc.closingGrossBlock;
-                summary.byType[type].openingAccumulatedDepreciation += calc.openingAccumulatedDepreciation;
-                summary.byType[type].openingNetBlock += calc.openingWDV;
-                summary.byType[type].depreciationForYear += calc.depreciationForYear;
-                summary.byType[type].closingAccumulatedDepreciation += calc.closingAccumulatedDepreciation;
-                summary.byType[type].closingNetBlock += calc.closingWDV;
-            });
-            summary.totals = Object.values(summary.byType).reduce((acc, curr) => {
-                Object.keys(acc).forEach(key => { if (typeof acc[key] === 'number') acc[key] += curr[key]; });
-                return acc;
-            }, { ...initialTypeSummary });
-        } else { // Income Tax Summary
-            const initialBlockSummary = { 
-                openingWDV: 0, additions: 0, saleValue: 0, wdvForDep: 0, 
-                depreciationForYear: 0, closingNetBlock: 0, shortTermCapitalGainLoss: 0 
-            };
-            calculationResults.forEach(({block, details}) => {
-                const type = block.blockType || 'unclassified';
-                if (!summary.byType[type]) {
-                    summary.byType[type] = { 
-                        ...initialBlockSummary,
-                        name: INCOME_TAX_BLOCKS[type]?.name || 'Unclassified Block',
-                        internalName: type,
-                    };
-                }
-                const calc = details;
-                summary.byType[type].openingWDV += calc.openingWDV;
-                summary.byType[type].additions += calc.additions;
-                summary.byType[type].saleValue += calc.saleValue;
-                summary.byType[type].wdvForDep += calc.wdvForDep;
-                summary.byType[type].depreciationForYear += calc.depreciationForYear;
-                summary.byType[type].closingNetBlock += calc.closingWDV;
-                summary.byType[type].shortTermCapitalGainLoss += calc.shortTermCapitalGainLoss;
-            });
-
-            summary.totals = Object.values(summary.byType).reduce((acc, curr) => {
-                Object.keys(acc).forEach(key => { if (typeof acc[key] === 'number') acc[key] += curr[key]; });
-                return acc;
-            }, { ...initialBlockSummary });
-        }
-
-        return summary;
-    }, [calculationResults, act]);
-
-    const filteredItems = useMemo(() => {
-        let results = calculationResults;
-        if (act === 'companies') {
-            if (filterType) {
-                results = results.filter(result => result.asset.assetType === filterType);
-            }
-            if (searchTerm) {
-                const lowercasedFilter = searchTerm.toLowerCase();
-                results = results.filter(result => 
-                    result.asset.name.toLowerCase().includes(lowercasedFilter)
-                );
-            }
-        } else if (act === 'income_tax') {
-            if (filterType) {
-                results = results.filter(result => result.block.blockType === filterType);
-            }
-            if (blockSearchTerm) {
-                const lowercasedFilter = blockSearchTerm.toLowerCase();
-                results = results.filter(result => 
-                    result.block.name.toLowerCase().includes(lowercasedFilter)
-                );
-            }
-        }
-        return results;
-    }, [calculationResults, filterType, searchTerm, blockSearchTerm, act]);
-    
-    const selectedAssetCount = useMemo(() => assets.filter(a => a.isSelected).length, [assets]);
-    const selectedBlockCount = useMemo(() => assetBlocks.filter(b => b.isSelected).length, [assetBlocks]);
-
-    const selectedAssetData = useMemo(() => {
-        if (act === 'companies') {
-            return calculationResults.find(r => r.id === selectedAssetId);
-        }
-        return null;
-    }, [selectedAssetId, calculationResults, act]);
-
-    const selectedBlockData = useMemo(() => {
-        if (act === 'income_tax') {
-            return calculationResults.find(r => r.id === selectedBlockId);
-        }
-        return null;
-    }, [selectedBlockId, calculationResults, act]);
-    
-    const allVisibleAssetsSelected = useMemo(() => {
-        if (act !== 'companies') return false;
-        const visibleIds = new Set(filteredItems.map(r => r.id));
-        if(visibleIds.size === 0) return false;
-        const visibleAssets = assets.filter(a => visibleIds.has(a.id));
-        if(visibleAssets.length === 0) return false;
-        return visibleAssets.every(a => a.isSelected);
-    }, [assets, filteredItems, act]);
-
-    const allVisibleBlocksSelected = useMemo(() => {
-        if (act !== 'income_tax') return false;
-        const visibleIds = new Set(filteredItems.map(r => r.id));
-        if(visibleIds.size === 0) return false;
-        const visibleBlocks = assetBlocks.filter(b => visibleIds.has(b.id));
-        if(visibleBlocks.length === 0) return false;
-        return visibleBlocks.every(b => b.isSelected);
-    }, [assetBlocks, filteredItems, act]);
-
-    const handleSelectAllAssets = useCallback(() => {
-        const visibleIds = new Set(filteredItems.map(a => a.id));
-        const shouldSelectAll = !allVisibleAssetsSelected;
-        setAssets(prevAssets => 
-            prevAssets.map(asset => {
-                if (visibleIds.has(asset.id)) {
-                    return {...asset, isSelected: shouldSelectAll};
-                }
-                return asset;
-            })
-        );
-    }, [filteredItems, allVisibleAssetsSelected]);
-
-    const handleSelectAllBlocks = useCallback(() => {
-        const visibleIds = new Set(filteredItems.map(b => b.id));
-        const shouldSelectAll = !allVisibleBlocksSelected;
-        setAssetBlocks(prevBlocks => prevBlocks.map(block => {
-            if (visibleIds.has(block.id)) {
-                return {...block, isSelected: shouldSelectAll};
-            }
-            return block;
-        }));
-    }, [filteredItems, allVisibleBlocksSelected]);
-
-    const renderCompaniesActContent = () => (
-        <>
-            <div className="max-w-lg mx-auto mb-6 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg p-2 rounded-xl flex space-x-2 border border-white/30 dark:border-slate-700/50 shadow-sm">
-                <button onClick={() => handleMethodChange('WDV')} className={`w-1/2 py-2 px-4 rounded-lg text-sm font-semibold transition-all duration-300 ${method === 'WDV' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'}`}>Written Down Value (WDV)</button>
-                <button onClick={() => handleMethodChange('SLM')} className={`w-1/2 py-2 px-4 rounded-lg text-sm font-semibold transition-all duration-300 ${method === 'SLM' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'}`}>Straight-Line Method (SLM)</button>
-            </div>
-            <main>
-                <div className="mb-4">
-                   <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-4">Assets</h2>
-                    {selectedAssetCount > 0 && (
-                        <div className="flex items-center gap-4 mb-4">
-                            <button onClick={handleSelectAllAssets} className="px-4 py-2 bg-slate-600 text-white font-semibold rounded-lg shadow-sm hover:bg-slate-700 transition-colors text-sm">{allVisibleAssetsSelected ? 'Deselect All' : 'Select All'}</button>
-                            <button onClick={handleDeleteAssetRequest} className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-sm hover:bg-red-700 transition-colors text-sm">Delete ({selectedAssetCount})</button>
-                        </div>
-                    )}
-                   <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
-                        <div className="relative w-full md:max-w-md">
-                             <input type="text" placeholder="Search assets by name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 border-2 border-slate-300 dark:border-slate-600 rounded-lg pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm transition"/>
-                            <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                        </div>
-                        {filterType && !isLoading && (
-                            <button onClick={() => setFilterType(null)} className="px-3 py-2 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 text-sm font-semibold rounded-lg shadow-sm hover:bg-indigo-200 dark:hover:bg-indigo-900 transition-colors flex items-center gap-1">
-                                <span>Filtering by: {filterType.replace(/_/g, ' ')}</span>
-                                <span className="font-bold">&times;</span>
-                            </button>
-                        )}
-                   </div>
-                </div>
-                {assets.length === 0 ? <EmptyState addAsset={addAsset} act={act} /> : <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{filteredItems.map((result) => <AssetCard key={result.id} asset={result.asset} details={result.details} onSelect={handleSelectAsset} onEdit={() => setSelectedAssetId(result.id)} />)}</div>}
-            </main>
-            {!isLoading && <button onClick={addAsset} className="fixed bottom-6 right-6 md:bottom-8 md:right-8 h-16 w-16 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center justify-center" title="Add New Asset" aria-label="Add new asset"><svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg></button>}
-            {selectedAssetData && <AssetDetailPanel key={selectedAssetData.id} asset={selectedAssetData.asset} details={selectedAssetData.details} updateAsset={updateAsset} method={method} act={act} onClose={() => setSelectedAssetId(null)} />}
-        </>
-    );
-
-    const renderIncomeTaxContent = () => (
-        <main>
-            <div className="mb-4">
-                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-4">Asset Blocks</h2>
-                {selectedBlockCount > 0 && (
-                    <div className="flex items-center gap-4 mb-4">
-                        <button onClick={handleSelectAllBlocks} className="px-4 py-2 bg-slate-600 text-white font-semibold rounded-lg shadow-sm hover:bg-slate-700 transition-colors text-sm">{allVisibleBlocksSelected ? 'Deselect All' : 'Select All'}</button>
-                        <button onClick={handleDeleteBlockRequest} className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-sm hover:bg-red-700 transition-colors text-sm">Delete ({selectedBlockCount})</button>
-                    </div>
-                )}
-                <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
-                    <div className="relative w-full md:max-w-md">
-                        <input type="text" placeholder="Search blocks by name..." value={blockSearchTerm} onChange={(e) => setBlockSearchTerm(e.target.value)} className="w-full bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 border-2 border-slate-300 dark:border-slate-600 rounded-lg pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm transition"/>
-                        <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                    </div>
-                    {filterType && !isLoading && (
-                        <button onClick={() => setFilterType(null)} className="px-3 py-2 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 text-sm font-semibold rounded-lg shadow-sm hover:bg-indigo-200 dark:hover:bg-indigo-900 transition-colors flex items-center gap-1">
-                            <span>Filtering by: {(INCOME_TAX_BLOCKS[filterType]?.name || filterType).replace(/_/g, ' ')}</span>
-                            <span className="font-bold">&times;</span>
-                        </button>
-                    )}
-                </div>
-            </div>
-            {assetBlocks.length === 0 ? (
-                <EmptyState addAsset={addBlock} act={act} />
-            ) : (
-                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredItems.map(result => (
-                        <BlockCard 
-                            key={result.id} 
-                            block={result.block} 
-                            details={result.details} 
-                            onSelect={handleSelectBlock} 
-                            onEdit={() => setSelectedBlockId(result.id)} 
-                        />
-                    ))}
-                </div>
-            )}
-            {!isLoading && <button onClick={addBlock} className="fixed bottom-6 right-6 md:bottom-8 md:right-8 h-16 w-16 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center justify-center" title="Add New Block" aria-label="Add new block"><svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg></button>}
-            {selectedBlockData && <BlockDetailPanel key={selectedBlockData.id} block={selectedBlockData.block} details={selectedBlockData.details} updateBlock={updateBlock} onClose={() => setSelectedBlockId(null)} />}
-        </main>
-    );
-   
-    if (isLoading) {
-        return (
-             <div className={theme}>
-                <div className="bg-gradient-to-br from-slate-50 to-slate-200 dark:from-slate-900 dark:to-slate-950 min-h-screen flex justify-center items-center">
-                    <div className="text-2xl font-bold text-slate-600 dark:text-slate-400">Loading Calculator...</div>
-                </div>
-            </div>
-        );
-    }
-
-    if (!act) {
-        return <ActSelectionScreen onSelectCalculationMode={handleSelectAct} theme={theme} toggleTheme={toggleTheme} />;
-    }
-
-    return (
-        <div className={theme}>
-            <PrintStyles />
-            <AutomatedTests isVisible={isTestRunnerVisible} onClose={() => setIsTestRunnerVisible(false)} />
-            
-            <div className="print-only">
-                 <PrintLayout 
-                    calculationResults={calculationResults}
-                    method={method}
-                    FY_LABEL={FY_LABEL}
-                    summaryData={summaryData}
-                    act={act}
-                />
-            </div>
-            
-            <div className="no-print bg-gradient-to-br from-slate-50 to-slate-200 dark:from-slate-900 dark:to-slate-950 min-h-screen text-slate-800 font-sans">
-                <div className="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
-                    <Toast 
-                        message={toast.message} 
-                        show={toast.show} 
-                        onClose={hideToast}
-                        onUndo={toast.onUndo}
-                    />
-                    <ConfirmationModal
-                        isOpen={isAssetDeleteModalOpen || isBlockDeleteModalOpen}
-                        onClose={() => { setIsAssetDeleteModalOpen(false); setIsBlockDeleteModalOpen(false); }}
-                        onConfirm={act === 'companies' ? handleConfirmAssetDelete : handleConfirmBlockDelete}
-                        title="Confirm Deletion"
-                        confirmText="Confirm Deletion"
-                    >
-                        Are you sure you want to delete the selected {act === 'companies' ? selectedAssetCount : selectedBlockCount} item(s)? This action cannot be undone.
-                    </ConfirmationModal>
-
-                    <header className="mb-8 relative flex flex-col sm:justify-center">
-                        <div className="w-full flex justify-end mb-4 sm:absolute sm:top-0 sm:right-0 sm:mb-0">
-                           <button onClick={toggleTheme} className="px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold rounded-lg shadow-sm hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors text-sm">
-                                {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
-                            </button>
-                        </div>
-                        <div className="text-center">
-                            <h1 className="text-4xl md:text-5xl font-bold text-slate-800 dark:text-slate-100">Depreciation Calculator</h1>
-                            <p className="text-lg text-slate-600 dark:text-slate-400 mt-2">
-                                {act === 'companies' ? 'As per Companies Act, 2013' : 'As per Income Tax Act, 1961'} for FY {FY_LABEL}
-                            </p>
-                        </div>
-                    </header>
-                    
-                    {isLoading ? <SkeletonSummary /> : <SummaryReport summaryData={summaryData} onFilterChange={setFilterType} showToast={showToast} filterType={filterType} theme={theme} act={act} setAct={handleSelectAct} />}
-
-                    {act === 'companies' ? renderCompaniesActContent() : renderIncomeTaxContent()}
-
-                    {isTestMode && (
-                        <footer className="text-center mt-12">
-                            <button onClick={() => setIsTestRunnerVisible(true)} className="text-sm text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-                                Run Automated Calculation Tests
-                            </button>
-                        </footer>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-}
-
-// IMPROVEMENT 5: New component for guided eligibility check
 const AdditionalDepreciationModal = ({ isOpen, onClose, onConfirm, eligibilityData, setEligibilityData }) => {
     if (!isOpen) return null;
 
@@ -1875,7 +1433,7 @@ const AdditionalDepreciationModal = ({ isOpen, onClose, onConfirm, eligibilityDa
 const BlockDetailPanel = ({ block, details, updateBlock, onClose }) => {
     const [isVisible, setIsVisible] = useState(false);
     const [newAddition, setNewAddition] = useState({ date: '', cost: '' });
-    
+
     // State for new modals
     const [isCessationModalOpen, setCessationModalOpen] = useState(false);
     const [isAdditionalDepModalOpen, setAdditionalDepModalOpen] = useState(false);
@@ -1891,13 +1449,12 @@ const BlockDetailPanel = ({ block, details, updateBlock, onClose }) => {
 
     const handleClose = () => {
         setIsVisible(false);
-        setTimeout(onClose, 300); 
+        setTimeout(onClose, 300);
     };
-    
+
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
-        
-        // IMPROVEMENT 2: Intercept blockCeased change to show modal
+
         if (name === 'blockCeased' && checked) {
             setCessationModalOpen(true);
             return; // Don't update state directly
@@ -1912,7 +1469,7 @@ const BlockDetailPanel = ({ block, details, updateBlock, onClose }) => {
                  return;
             }
         }
-        
+
         let updatedBlock = { ...block, [name]: sanitizedValue };
 
         if (name === 'blockType') {
@@ -1927,15 +1484,15 @@ const BlockDetailPanel = ({ block, details, updateBlock, onClose }) => {
                 updatedBlock.additionalDepEligibility = { isNewPlantMachinery: false, isManufacturing: false, isNotExcluded: false };
             }
         }
-        
+
         updateBlock(block.id, updatedBlock);
     };
-    
+
     const handleConfirmCessation = () => {
         updateBlock(block.id, { ...block, blockCeased: true });
         setCessationModalOpen(false);
     };
-    
+
     const handleConfirmAdditionalDep = (isEligible) => {
         updateBlock(block.id, { ...block, eligibleForAdditional: isEligible, additionalDepEligibility: tempEligibility });
         setAdditionalDepModalOpen(false);
@@ -1952,12 +1509,11 @@ const BlockDetailPanel = ({ block, details, updateBlock, onClose }) => {
         const updatedAdditions = block.additions.filter((_, i) => i !== index);
         updateBlock(block.id, { ...block, additions: updatedAdditions });
     };
-    
-    // IMPROVEMENT 1: Logic to disable sale value input
+
     const canHaveSaleValue = (parseFloat(block.openingWDV) || 0) > 0 || (block.additions && block.additions.length > 0);
-    
+
     const inputFieldClass = "w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 border border-slate-300 dark:border-slate-700 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-300";
-    
+
     return (
         <>
         <ConfirmationModal
@@ -1970,7 +1526,7 @@ const BlockDetailPanel = ({ block, details, updateBlock, onClose }) => {
             <p>By marking this block as 'ceased', you are confirming that all assets within this block have been sold or disposed of during the financial year.</p>
             <p className="mt-2 font-semibold">This action will calculate the final Short Term Capital Gain/Loss and set the closing WDV to zero.</p>
         </ConfirmationModal>
-        
+
         <AdditionalDepreciationModal
             isOpen={isAdditionalDepModalOpen}
             onClose={() => setAdditionalDepModalOpen(false)}
@@ -2007,7 +1563,7 @@ const BlockDetailPanel = ({ block, details, updateBlock, onClose }) => {
                             <label htmlFor={`openingWDV-${block.id}`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Opening WDV (₹)</label>
                             <input id={`openingWDV-${block.id}`} type="number" name="openingWDV" value={block.openingWDV} onChange={handleInputChange} className={inputFieldClass} placeholder="e.g. 1000000" />
                         </div>
-                        
+
                         <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
                             <h4 className="text-md font-semibold text-slate-800 dark:text-slate-100 mb-3">Additions During The Year</h4>
                              {(block.additions || []).map((add, index) => (
@@ -2037,8 +1593,8 @@ const BlockDetailPanel = ({ block, details, updateBlock, onClose }) => {
                                             </p>
                                         )}
                                     </div>
-                                    <button 
-                                        onClick={() => { setTempEligibility(block.additionalDepEligibility); setAdditionalDepModalOpen(true); }} 
+                                    <button
+                                        onClick={() => { setTempEligibility(block.additionalDepEligibility); setAdditionalDepModalOpen(true); }}
                                         className="px-4 py-2 text-sm font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg hover:bg-indigo-200 dark:hover:bg-indigo-900 transition-colors disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed"
                                         disabled={!isBlockTypeEligibleForAdditionalDep}
                                         aria-disabled={!isBlockTypeEligibleForAdditionalDep}
@@ -2102,3 +1658,583 @@ const BlockDetailPanel = ({ block, details, updateBlock, onClose }) => {
         </>
     );
 };
+
+
+export default function App() {
+    const [isLoading, setIsLoading] = useState(true);
+    const [theme, setTheme] = useState('light');
+    const [act, setAct] = useState(null); // 'companies' or 'income_tax'
+    const [method, setMethod] = useState('WDV');
+
+    // State for Companies Act
+    const [assets, setAssets] = useState([]);
+
+    // State for Income Tax Act
+    const [assetBlocks, setAssetBlocks] = useState([]);
+
+    const [isAssetDeleteModalOpen, setIsAssetDeleteModalOpen] = useState(false);
+    const [isBlockDeleteModalOpen, setIsBlockDeleteModalOpen] = useState(false);
+    const [isTestRunnerVisible, setIsTestRunnerVisible] = useState(false);
+    const [toast, setToast] = useState({ message: '', show: false, onUndo: null });
+    const [filterType, setFilterType] = useState(null);
+    const [selectedAssetId, setSelectedAssetId] = useState(null);
+    const [selectedBlockId, setSelectedBlockId] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [blockSearchTerm, setBlockSearchTerm] = useState('');
+    
+    // NEW STATE for Help Modal
+    const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
+    const [helpTopic, setHelpTopic] = useState('introduction');
+
+    // Check for test mode using URL query parameter
+    const isTestMode = useMemo(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('mode') === 'test';
+        }
+        return false;
+    }, []);
+
+    const debouncedAssets = useDebounce(assets, 300);
+    const debouncedAssetBlocks = useDebounce(assetBlocks, 300);
+    const debouncedMethod = useDebounce(method, 300);
+    const debouncedTheme = useDebounce(theme, 300);
+    const debouncedAct = useDebounce(act, 300);
+
+    const showToast = useCallback((message, onUndo = null) => {
+        setToast({ message, show: true, onUndo });
+    },[]);
+
+    const hideToast = useCallback(() => {
+        setToast(prev => ({ ...prev, show: false, onUndo: null }));
+    }, []);
+
+    const saveState = useCallback((stateToSave) => {
+        try {
+            const dataToSave = {
+                assets: stateToSave.assets.map(({ isNew, ...rest }) => rest),
+                assetBlocks: stateToSave.assetBlocks.map(({ isNew, ...rest }) => rest),
+                method: stateToSave.method,
+                act: stateToSave.act,
+            };
+            localStorage.setItem('depreciationAppStateV9', JSON.stringify(dataToSave));
+            localStorage.setItem('depreciationAppTheme', stateToSave.theme);
+        } catch (error) {
+            console.error("Failed to save state to localStorage", error);
+            showToast("Error: Could not save data.");
+        }
+    }, [showToast]);
+    
+    const openHelpModal = (topic) => {
+        setHelpTopic(topic);
+        setIsHelpModalOpen(true);
+    };
+
+    useEffect(() => {
+        const papaScriptId = 'papaparse-script';
+        if (!document.getElementById(papaScriptId)) {
+            const script = document.createElement('script');
+            script.id = papaScriptId;
+            script.src = "https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js";
+            script.async = true;
+            script.onload = () => console.log('PapaParse loaded');
+            script.onerror = () => showToast("Export feature unavailable. Please check your internet connection and refresh.");
+            document.head.appendChild(script);
+        }
+    }, [showToast]);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            try {
+                const savedState = localStorage.getItem('depreciationAppStateV9');
+                const savedTheme = localStorage.getItem('depreciationAppTheme');
+                const hasVisited = localStorage.getItem('depreciationAppVisited');
+                setTheme(savedTheme || 'light');
+
+                if (savedState) {
+                    const { assets: savedAssets, assetBlocks: savedBlocks, method: savedMethod, act: savedAct } = JSON.parse(savedState);
+                    setAssets(savedAssets?.map(a => ({...a, isSelected: false, isNew: false })) || []);
+                    setAssetBlocks(savedBlocks?.map(b => ({...b, isSelected: false, isNew: false })) || []);
+                    setMethod(savedMethod || 'WDV');
+                    setAct(savedAct || null);
+                } else {
+                     setAssets([]);
+                     setAssetBlocks([]);
+                     if (!hasVisited) {
+                        openHelpModal('introduction');
+                        localStorage.setItem('depreciationAppVisited', 'true');
+                     }
+                }
+            } catch (error) {
+                console.error("Failed to load state from localStorage", error);
+                 setAssets([]);
+                 setAssetBlocks([]);
+            }
+            setIsLoading(false);
+        }, 1000);
+        return () => clearTimeout(timer);
+    }, []);
+
+    useEffect(() => {
+        if (!isLoading) {
+            saveState({ assets: debouncedAssets, assetBlocks: debouncedAssetBlocks, method: debouncedMethod, theme: debouncedTheme, act: debouncedAct });
+        }
+    }, [debouncedAssets, debouncedAssetBlocks, debouncedMethod, debouncedTheme, debouncedAct, isLoading, saveState]);
+
+    const toggleTheme = () => {
+        setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
+    };
+
+    const handleSelectAct = (selectedAct) => {
+        setAct(selectedAct);
+        setFilterType(null);
+        setSearchTerm('');
+        setBlockSearchTerm('');
+    };
+
+    const addAsset = useCallback(() => {
+        const newId = `asset-${Date.now()}`;
+        const newAsset = {
+            id: newId, name: '',
+            additions: [],
+            assetType: '', isNew: true, isSelected: false,
+            purchaseDate: '', disposalDate: '', saleValue: '',
+            companiesAct: { openingGrossBlock: '', openingAccumulatedDepreciation: '', residualValue: '' },
+        };
+        const newAssets = [newAsset, ...assets];
+        setAssets(newAssets);
+        setSelectedAssetId(newId);
+        setFilterType(null);
+        showToast("Asset added successfully!");
+    }, [assets, showToast]);
+
+    const addBlock = useCallback(() => {
+        const newId = `block-${Date.now()}`;
+        const newBlock = {
+            id: newId,
+            blockType: '',
+            name: 'New Block',
+            rate: 0,
+            openingWDV: '',
+            additions: [],
+            saleProceeds: '',
+            blockCeased: false,
+            eligibleForAdditional: false,
+            additionalDepEligibility: {
+                isNewPlantMachinery: false,
+                isManufacturing: false,
+                isNotExcluded: false,
+            },
+            isSelected: false,
+            isNew: true,
+        };
+        const newBlocks = [newBlock, ...assetBlocks];
+        setAssetBlocks(newBlocks);
+        setSelectedBlockId(newId);
+        showToast("New block added. Please select a block type.");
+    }, [assetBlocks, showToast]);
+
+    const updateAsset = useCallback((id, updatedData) => {
+        setAssets(prev => prev.map(asset => (asset.id === id ? updatedData : asset)));
+    }, []);
+
+    const updateBlock = useCallback((id, updatedData) => {
+        setAssetBlocks(prev => prev.map(block => (block.id === id ? updatedData : block)));
+    }, []);
+
+    const handleSelectAsset = useCallback((id, isSelected) => {
+        setAssets(prev => prev.map(asset => asset.id === id ? {...asset, isSelected} : asset));
+    }, []);
+
+    const handleSelectBlock = useCallback((id, isSelected) => {
+        setAssetBlocks(prev => prev.map(block => block.id === id ? {...block, isSelected} : block));
+    }, []);
+
+    const handleDeleteAssetRequest = () => {
+        if (selectedAssetCount > 0) {
+            setIsAssetDeleteModalOpen(true);
+        }
+    };
+
+    const handleDeleteBlockRequest = () => {
+        if (selectedBlockCount > 0) {
+            setIsBlockDeleteModalOpen(true);
+        }
+    };
+
+    const handleConfirmAssetDelete = useCallback(() => {
+      const originalAssets = [...assets];
+      const assetsToDelete = assets.filter(a => a.isSelected);
+      const newAssets = assets.filter(asset => !asset.isSelected);
+
+      setAssets(newAssets);
+      setIsAssetDeleteModalOpen(false);
+      setSelectedAssetId(null);
+
+      const undo = () => {
+          setAssets(originalAssets);
+          hideToast();
+          showToast("Deletion undone.");
+      };
+      showToast(`${assetsToDelete.length} asset(s) deleted.`, undo);
+    }, [assets, showToast, hideToast]);
+
+    const handleConfirmBlockDelete = useCallback(() => {
+      const originalBlocks = [...assetBlocks];
+      const blocksToDelete = assetBlocks.filter(b => b.isSelected);
+      const newBlocks = assetBlocks.filter(block => !block.isSelected);
+
+      setAssetBlocks(newBlocks);
+      setIsBlockDeleteModalOpen(false);
+      setSelectedBlockId(null);
+
+      const undo = () => {
+          setAssetBlocks(originalBlocks);
+          hideToast();
+          showToast("Deletion undone.");
+      };
+      showToast(`${blocksToDelete.length} block(s) deleted.`, undo);
+    }, [assetBlocks, showToast, hideToast]);
+
+    const handleMethodChange = (newMethod) => {
+        if (method !== newMethod && assets.some(a => a.companiesAct.openingGrossBlock || a.additions.length > 0)) {
+            showToast("Method switched. Please review assets as Residual Value requirements may have changed.");
+        }
+        setMethod(newMethod);
+    };
+
+    const calculationResults = useMemo(() => {
+        if (act === 'companies') {
+            return assets.map(asset => ({
+                id: asset.id,
+                asset,
+                details: calculateCompaniesActDepreciation(asset, method)
+            }));
+        }
+        if (act === 'income_tax') {
+            return assetBlocks.map(block => ({
+                id: block.id,
+                block,
+                details: calculateIncomeTaxDepreciation(block)
+            }));
+        }
+        return [];
+    }, [assets, assetBlocks, method, act]);
+
+    const summaryData = useMemo(() => {
+        const summary = { byType: {} };
+
+        if (act === 'companies') {
+            const initialTypeSummary = {
+                openingGrossBlock: 0, additions: 0, disposalsCost: 0, closingGrossBlock: 0,
+                openingAccumulatedDepreciation: 0, openingNetBlock: 0, depreciationForYear: 0,
+                closingAccumulatedDepreciation: 0, closingNetBlock: 0
+            };
+            calculationResults.forEach(({asset, details}) => {
+                const type = asset.assetType || 'unclassified';
+                if (!summary.byType[type]) {
+                    summary.byType[type] = {
+                        ...initialTypeSummary,
+                        name: type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                        internalName: type,
+                    };
+                }
+                const calc = details;
+                summary.byType[type].openingGrossBlock += calc.openingGrossBlock;
+                summary.byType[type].additions += calc.grossBlockAdditions;
+                summary.byType[type].disposalsCost += calc.disposalsCost;
+                summary.byType[type].closingGrossBlock += calc.closingGrossBlock;
+                summary.byType[type].openingAccumulatedDepreciation += calc.openingAccumulatedDepreciation;
+                summary.byType[type].openingNetBlock += calc.openingWDV;
+                summary.byType[type].depreciationForYear += calc.depreciationForYear;
+                summary.byType[type].closingAccumulatedDepreciation += calc.closingAccumulatedDepreciation;
+                summary.byType[type].closingNetBlock += calc.closingWDV;
+            });
+            summary.totals = Object.values(summary.byType).reduce((acc, curr) => {
+                Object.keys(acc).forEach(key => { if (typeof acc[key] === 'number') acc[key] += curr[key]; });
+                return acc;
+            }, { ...initialTypeSummary });
+        } else { // Income Tax Summary
+            const initialBlockSummary = {
+                openingWDV: 0, additions: 0, saleValue: 0, wdvForDep: 0,
+                depreciationForYear: 0, closingNetBlock: 0, shortTermCapitalGainLoss: 0
+            };
+            calculationResults.forEach(({block, details}) => {
+                const type = block.blockType || 'unclassified';
+                if (!summary.byType[type]) {
+                    summary.byType[type] = {
+                        ...initialBlockSummary,
+                        name: INCOME_TAX_BLOCKS[type]?.name || 'Unclassified Block',
+                        internalName: type,
+                    };
+                }
+                const calc = details;
+                summary.byType[type].openingWDV += calc.openingWDV;
+                summary.byType[type].additions += calc.additions;
+                summary.byType[type].saleValue += calc.saleValue;
+                summary.byType[type].wdvForDep += calc.wdvForDep;
+                summary.byType[type].depreciationForYear += calc.depreciationForYear;
+                summary.byType[type].closingNetBlock += calc.closingWDV;
+                summary.byType[type].shortTermCapitalGainLoss += calc.shortTermCapitalGainLoss;
+            });
+
+            summary.totals = Object.values(summary.byType).reduce((acc, curr) => {
+                Object.keys(acc).forEach(key => { if (typeof acc[key] === 'number') acc[key] += curr[key]; });
+                return acc;
+            }, { ...initialBlockSummary });
+        }
+
+        return summary;
+    }, [calculationResults, act]);
+
+    const filteredItems = useMemo(() => {
+        let results = calculationResults;
+        if (act === 'companies') {
+            if (filterType) {
+                results = results.filter(result => result.asset.assetType === filterType);
+            }
+            if (searchTerm) {
+                const lowercasedFilter = searchTerm.toLowerCase();
+                results = results.filter(result =>
+                    result.asset.name.toLowerCase().includes(lowercasedFilter)
+                );
+            }
+        } else if (act === 'income_tax') {
+            if (filterType) {
+                results = results.filter(result => result.block.blockType === filterType);
+            }
+            if (blockSearchTerm) {
+                const lowercasedFilter = blockSearchTerm.toLowerCase();
+                results = results.filter(result =>
+                    result.block.name.toLowerCase().includes(lowercasedFilter)
+                );
+            }
+        }
+        return results;
+    }, [calculationResults, filterType, searchTerm, blockSearchTerm, act]);
+
+    const selectedAssetCount = useMemo(() => assets.filter(a => a.isSelected).length, [assets]);
+    const selectedBlockCount = useMemo(() => assetBlocks.filter(b => b.isSelected).length, [assetBlocks]);
+
+    const selectedAssetData = useMemo(() => {
+        if (act === 'companies') {
+            return calculationResults.find(r => r.id === selectedAssetId);
+        }
+        return null;
+    }, [selectedAssetId, calculationResults, act]);
+
+    const selectedBlockData = useMemo(() => {
+        if (act === 'income_tax') {
+            return calculationResults.find(r => r.id === selectedBlockId);
+        }
+        return null;
+    }, [selectedBlockId, calculationResults, act]);
+
+    const allVisibleAssetsSelected = useMemo(() => {
+        if (act !== 'companies') return false;
+        const visibleIds = new Set(filteredItems.map(r => r.id));
+        if(visibleIds.size === 0) return false;
+        const visibleAssets = assets.filter(a => visibleIds.has(a.id));
+        if(visibleAssets.length === 0) return false;
+        return visibleAssets.every(a => a.isSelected);
+    }, [assets, filteredItems, act]);
+
+    const allVisibleBlocksSelected = useMemo(() => {
+        if (act !== 'income_tax') return false;
+        const visibleIds = new Set(filteredItems.map(r => r.id));
+        if(visibleIds.size === 0) return false;
+        const visibleBlocks = assetBlocks.filter(b => visibleIds.has(b.id));
+        if(visibleBlocks.length === 0) return false;
+        return visibleBlocks.every(b => b.isSelected);
+    }, [assetBlocks, filteredItems, act]);
+
+    const handleSelectAllAssets = useCallback(() => {
+        const visibleIds = new Set(filteredItems.map(a => a.id));
+        const shouldSelectAll = !allVisibleAssetsSelected;
+        setAssets(prevAssets =>
+            prevAssets.map(asset => {
+                if (visibleIds.has(asset.id)) {
+                    return {...asset, isSelected: shouldSelectAll};
+                }
+                return asset;
+            })
+        );
+    }, [filteredItems, allVisibleAssetsSelected]);
+
+    const handleSelectAllBlocks = useCallback(() => {
+        const visibleIds = new Set(filteredItems.map(b => b.id));
+        const shouldSelectAll = !allVisibleBlocksSelected;
+        setAssetBlocks(prevBlocks => prevBlocks.map(block => {
+            if (visibleIds.has(block.id)) {
+                return {...block, isSelected: shouldSelectAll};
+            }
+            return block;
+        }));
+    }, [filteredItems, allVisibleBlocksSelected]);
+
+    const renderCompaniesActContent = () => (
+        <>
+            <div className="max-w-lg mx-auto mb-6 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg p-2 rounded-xl flex space-x-2 border border-white/30 dark:border-slate-700/50 shadow-sm">
+                <button onClick={() => handleMethodChange('WDV')} className={`w-1/2 py-2 px-4 rounded-lg text-sm font-semibold transition-all duration-300 ${method === 'WDV' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'}`}>Written Down Value (WDV)</button>
+                <button onClick={() => handleMethodChange('SLM')} className={`w-1/2 py-2 px-4 rounded-lg text-sm font-semibold transition-all duration-300 ${method === 'SLM' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'}`}>Straight-Line Method (SLM)</button>
+            </div>
+            <main>
+                <div className="mb-4">
+                   <div className="flex items-center gap-2 mb-4">
+                        <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Assets</h2>
+                        <button onClick={() => openHelpModal('companiesAct')} className="text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.546-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        </button>
+                   </div>
+                    {selectedAssetCount > 0 && (
+                        <div className="flex items-center gap-4 mb-4">
+                            <button onClick={handleSelectAllAssets} className="px-4 py-2 bg-slate-600 text-white font-semibold rounded-lg shadow-sm hover:bg-slate-700 transition-colors text-sm">{allVisibleAssetsSelected ? 'Deselect All' : 'Select All'}</button>
+                            <button onClick={handleDeleteAssetRequest} className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-sm hover:bg-red-700 transition-colors text-sm">Delete ({selectedAssetCount})</button>
+                        </div>
+                    )}
+                   <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
+                        <div className="relative w-full md:max-w-md">
+                             <input type="text" placeholder="Search assets by name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 border-2 border-slate-300 dark:border-slate-600 rounded-lg pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm transition"/>
+                            <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                        </div>
+                        {filterType && !isLoading && (
+                            <button onClick={() => setFilterType(null)} className="px-3 py-2 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 text-sm font-semibold rounded-lg shadow-sm hover:bg-indigo-200 dark:hover:bg-indigo-900 transition-colors flex items-center gap-1">
+                                <span>Filtering by: {filterType.replace(/_/g, ' ')}</span>
+                                <span className="font-bold">&times;</span>
+                            </button>
+                        )}
+                   </div>
+                </div>
+                {assets.length === 0 ? <EmptyState addAsset={addAsset} act={act} /> : <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{filteredItems.map((result) => <AssetCard key={result.id} asset={result.asset} details={result.details} onSelect={handleSelectAsset} onEdit={() => setSelectedAssetId(result.id)} />)}</div>}
+            </main>
+            {!isLoading && <button onClick={addAsset} className="fixed bottom-6 right-6 md:bottom-8 md:right-8 h-16 w-16 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center justify-center" title="Add New Asset" aria-label="Add new asset"><svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg></button>}
+            {selectedAssetData && <AssetDetailPanel key={selectedAssetData.id} asset={selectedAssetData.asset} details={selectedAssetData.details} updateAsset={updateAsset} method={method} act={act} onClose={() => setSelectedAssetId(null)} />}
+        </>
+    );
+
+    const renderIncomeTaxContent = () => (
+        <main>
+            <div className="mb-4">
+                <div className="flex items-center gap-2 mb-4">
+                    <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Asset Blocks</h2>
+                     <button onClick={() => openHelpModal('incomeTaxAct')} className="text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.546-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </button>
+                </div>
+                {selectedBlockCount > 0 && (
+                    <div className="flex items-center gap-4 mb-4">
+                        <button onClick={handleSelectAllBlocks} className="px-4 py-2 bg-slate-600 text-white font-semibold rounded-lg shadow-sm hover:bg-slate-700 transition-colors text-sm">{allVisibleBlocksSelected ? 'Deselect All' : 'Select All'}</button>
+                        <button onClick={handleDeleteBlockRequest} className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-sm hover:bg-red-700 transition-colors text-sm">Delete ({selectedBlockCount})</button>
+                    </div>
+                )}
+                <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
+                    <div className="relative w-full md:max-w-md">
+                        <input type="text" placeholder="Search blocks by name..." value={blockSearchTerm} onChange={(e) => setBlockSearchTerm(e.target.value)} className="w-full bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 border-2 border-slate-300 dark:border-slate-600 rounded-lg pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm transition"/>
+                        <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                    </div>
+                    {filterType && !isLoading && (
+                        <button onClick={() => setFilterType(null)} className="px-3 py-2 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 text-sm font-semibold rounded-lg shadow-sm hover:bg-indigo-200 dark:hover:bg-indigo-900 transition-colors flex items-center gap-1">
+                            <span>Filtering by: {(INCOME_TAX_BLOCKS[filterType]?.name || filterType).replace(/_/g, ' ')}</span>
+                            <span className="font-bold">&times;</span>
+                        </button>
+                    )}
+                </div>
+            </div>
+            {assetBlocks.length === 0 ? (
+                <EmptyState addAsset={addBlock} act={act} />
+            ) : (
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredItems.map(result => (
+                        <BlockCard
+                            key={result.id}
+                            block={result.block}
+                            details={result.details}
+                            onSelect={handleSelectBlock}
+                            onEdit={() => setSelectedBlockId(result.id)}
+                        />
+                    ))}
+                </div>
+            )}
+            {!isLoading && <button onClick={addBlock} className="fixed bottom-6 right-6 md:bottom-8 md:right-8 h-16 w-16 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center justify-center" title="Add New Block" aria-label="Add new block"><svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg></button>}
+            {selectedBlockData && <BlockDetailPanel key={selectedBlockData.id} block={selectedBlockData.block} details={selectedBlockData.details} updateBlock={updateBlock} onClose={() => setSelectedBlockId(null)} />}
+        </main>
+    );
+
+    // FIX: Restructured the main return block to ensure HelpModal is always available.
+    return (
+        <div className={theme}>
+            {/* The HelpModal is now at the top level, so it can be opened from any screen. */}
+            <HelpModal isOpen={isHelpModalOpen} onClose={() => setIsHelpModalOpen(false)} topic={helpTopic} />
+            
+            {isLoading ? (
+                <div className="bg-gradient-to-br from-slate-50 to-slate-200 dark:from-slate-900 dark:to-slate-950 min-h-screen flex justify-center items-center">
+                    <div className="text-2xl font-bold text-slate-600 dark:text-slate-400">Loading Calculator...</div>
+                </div>
+            ) : !act ? (
+                <ActSelectionScreen onSelectCalculationMode={handleSelectAct} theme={theme} toggleTheme={toggleTheme} openHelpModal={openHelpModal} />
+            ) : (
+                <>
+                    <PrintStyles />
+                    <AutomatedTests isVisible={isTestRunnerVisible} onClose={() => setIsTestRunnerVisible(false)} />
+                    
+                    <div className="print-only">
+                        <PrintLayout 
+                            calculationResults={calculationResults}
+                            method={method}
+                            FY_LABEL={FY_LABEL}
+                            summaryData={summaryData}
+                            act={act}
+                        />
+                    </div>
+
+                    <div className="no-print bg-gradient-to-br from-slate-50 to-slate-200 dark:from-slate-900 dark:to-slate-950 min-h-screen text-slate-800 font-sans">
+                        <div className="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
+                            <Toast
+                                message={toast.message}
+                                show={toast.show}
+                                onClose={hideToast}
+                                onUndo={toast.onUndo}
+                            />
+                            <ConfirmationModal
+                                isOpen={isAssetDeleteModalOpen || isBlockDeleteModalOpen}
+                                onClose={() => { setIsAssetDeleteModalOpen(false); setIsBlockDeleteModalOpen(false); }}
+                                onConfirm={act === 'companies' ? handleConfirmAssetDelete : handleConfirmBlockDelete}
+                                title="Confirm Deletion"
+                                confirmText="Confirm Deletion"
+                            >
+                                Are you sure you want to delete the selected {act === 'companies' ? selectedAssetCount : selectedBlockCount} item(s)? This action cannot be undone.
+                            </ConfirmationModal>
+
+                            <header className="mb-8 relative flex flex-col sm:justify-center">
+                                <div className="w-full flex justify-end mb-4 sm:absolute sm:top-0 sm:right-0 sm:mb-0 gap-2">
+                                <button onClick={() => openHelpModal(act === 'companies' ? 'companiesAct' : 'incomeTaxAct')} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-sm hover:bg-blue-700 transition-colors text-sm">Help</button>
+                                <button onClick={toggleTheme} className="px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold rounded-lg shadow-sm hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors text-sm">
+                                        {theme === 'light' ? 'Dark' : 'Light'}
+                                    </button>
+                                </div>
+                                <div className="text-center">
+                                    <h1 className="text-4xl md:text-5xl font-bold text-slate-800 dark:text-slate-100">Depreciation Calculator</h1>
+                                    <p className="text-lg text-slate-600 dark:text-slate-400 mt-2">
+                                        {act === 'companies' ? 'As per Companies Act, 2013' : 'As per Income Tax Act, 1961'} for FY {FY_LABEL}
+                                    </p>
+                                </div>
+                            </header>
+
+                            {isLoading ? <SkeletonSummary /> : <SummaryReport summaryData={summaryData} onFilterChange={setFilterType} showToast={showToast} filterType={filterType} theme={theme} act={act} setAct={handleSelectAct} />}
+
+                            {act === 'companies' ? renderCompaniesActContent() : renderIncomeTaxContent()}
+
+                            {isTestMode && (
+                                <footer className="text-center mt-12">
+                                    <button onClick={() => setIsTestRunnerVisible(true)} className="text-sm text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                                        Run Automated Calculation Tests
+                                    </button>
+                                </footer>
+                            )}
+                        </div>
+                    </div>
+                </>
+            )}
+        </div>
+    );
+}
