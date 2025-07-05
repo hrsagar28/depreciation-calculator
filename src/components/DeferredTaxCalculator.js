@@ -23,40 +23,43 @@ const DeferredTaxCalculator = ({
     const [taxRate, setTaxRate] = useState(25); // Common corporate tax rate
     const [accountingProfit, setAccountingProfit] = useState('');
 
-    // --- CORRECTED DEFERRED TAX LOGIC ---
+    // --- FULLY CORRECTED DEFERRED TAX LOGIC ---
     const parsedAccountingProfit = parseFloat(accountingProfit) || 0;
 
-    // Difference in WDV creates the DTA/DTL balance
-    const openingWdvDifference = (openingCompaniesActWdv || 0) - (openingIncomeTaxWdv || 0);
-    const openingDeferredTax = openingWdvDifference * (taxRate / 100);
+    // A "taxable temporary difference" arises when Tax WDV > Book WDV. This creates a Deferred Tax Liability (DTL).
+    // A "deductible temporary difference" arises when Book WDV > Tax WDV. This creates a Deferred Tax Asset (DTA).
+    // We will calculate the difference as (Tax Base - Accounting Base). A positive result is a DTL.
 
-    // Difference in current year's depreciation creates the movement
-    const movementDifference = (companiesActDepreciation || 0) - (incomeTaxDepreciation || 0);
-    const movementDeferredTax = movementDifference * (taxRate / 100);
+    const openingTimingDifference = (openingIncomeTaxWdv || 0) - (openingCompaniesActWdv || 0);
+    const openingDeferredTax = openingTimingDifference * (taxRate / 100);
+
+    const movementTimingDifference = (incomeTaxDepreciation || 0) - (companiesActDepreciation || 0);
+    const movementDeferredTax = movementTimingDifference * (taxRate / 100);
 
     const closingDeferredTax = openingDeferredTax + movementDeferredTax;
 
-    // A positive difference (Book Dep > Tax Dep) leads to a DTA.
-    // A negative difference (Book Dep < Tax Dep) leads to a DTL.
-    const isClosingLiability = closingDeferredTax <= 0;
+    // A positive deferred tax balance now represents a DTL.
+    const isClosingLiability = closingDeferredTax >= 0;
     const resultType = isClosingLiability ? 'Liability' : 'Asset';
     const resultColorClass = isClosingLiability ? 'text-red-600 dark:text-red-500' : 'text-green-600 dark:text-green-500';
 
     // --- JOURNAL ENTRY LOGIC (based on the movement) ---
     const journalEntry = {
         title: `Journal Entry for Movement in Deferred Tax`,
-        debit: movementDeferredTax >= 0 ? 'Deferred Tax Asset (B/S)' : 'Deferred Tax Expense (P&L)',
-        credit: movementDeferredTax >= 0 ? 'Deferred Tax Expense (P&L)' : 'Deferred Tax Liability (B/S)',
+        // If movement is positive, DTL increases or DTA decreases -> Debit P&L
+        debit: movementDeferredTax >= 0 ? 'Deferred Tax Expense (P&L)' : 'Deferred Tax Asset (B/S)',
+        // If movement is positive, DTL increases -> Credit DTL
+        credit: movementDeferredTax >= 0 ? 'Deferred Tax Liability (B/S)' : 'Deferred Tax Expense (P&L)',
         amount: Math.abs(movementDeferredTax),
         narration: `Being the movement in deferred tax for the year recognized on timing differences in depreciation.`
     };
+    
+    // --- DISCLOSURE CALCULATIONS ---
+    const currentTax = (parsedAccountingProfit + movementTimingDifference) * (taxRate / 100);
+    const totalTaxExpense = currentTax + movementDeferredTax;
 
     return (
         <div className="w-full max-w-5xl mx-auto">
-            <header className="mb-8 flex justify-between items-center">
-                {/* The main header is now in App.js */}
-            </header>
-
             <div className="space-y-8">
                 {/* Section 1: Inputs and Summary */}
                 <InfoCard title="1. Calculation Inputs & Summary">
@@ -89,7 +92,7 @@ const DeferredTaxCalculator = ({
                         {/* Summary Table */}
                         <div className="space-y-2">
                             <div className="flex justify-between py-2 border-b border-slate-200 dark:border-slate-700">
-                                <span className="text-slate-600 dark:text-slate-400">Opening Deferred Tax {openingDeferredTax >= 0 ? 'Asset' : 'Liability'}</span>
+                                <span className="text-slate-600 dark:text-slate-400">Opening Deferred Tax {openingDeferredTax >= 0 ? 'Liability' : 'Asset'}</span>
                                 <span className="font-medium text-slate-800 dark:text-slate-200">{formatCurrency(Math.abs(openingDeferredTax))}</span>
                             </div>
                             <div className="flex justify-between py-2 border-b border-slate-200 dark:border-slate-700">
@@ -155,24 +158,20 @@ const DeferredTaxCalculator = ({
                         </div>
                         <div>
                             <h4 className="font-bold text-slate-800 dark:text-slate-100 mb-2">B. Tax Expense (Profit & Loss Note)</h4>
-                            <p>The total tax expense is reconciled as follows:</p>
+                            <p>The total tax expense is composed of current and deferred tax:</p>
                              <table className="w-full max-w-md mt-2 text-left text-sm">
                                 <tbody>
                                     <tr className="border-b border-slate-200 dark:border-slate-700">
-                                        <td className="py-1">Accounting Profit before Tax</td>
-                                        <td className="py-1 text-right">{formatCurrency(parsedAccountingProfit)}</td>
+                                        <td className="py-1">Current Tax (on taxable profit)</td>
+                                        <td className="py-1 text-right">{formatCurrency(currentTax)}</td>
                                     </tr>
                                     <tr className="border-b border-slate-200 dark:border-slate-700">
-                                        <td className="py-1">Tax at applicable rate ({taxRate}%)</td>
-                                        <td className="py-1 text-right">{formatCurrency(parsedAccountingProfit * (taxRate / 100))}</td>
-                                    </tr>
-                                     <tr className="border-b border-slate-200 dark:border-slate-700">
-                                        <td className="py-1">Tax effect of timing differences</td>
+                                        <td className="py-1">Deferred Tax (charge/credit for the year)</td>
                                         <td className="py-1 text-right">{formatCurrency(movementDeferredTax)}</td>
                                     </tr>
                                     <tr className="font-bold border-t-2 border-slate-300 dark:border-slate-600">
                                         <td className="py-1">Total Tax Expense for the year</td>
-                                        <td className="py-1 text-right">{formatCurrency((parsedAccountingProfit * (taxRate / 100)) + movementDeferredTax)}</td>
+                                        <td className="py-1 text-right">{formatCurrency(totalTaxExpense)}</td>
                                     </tr>
                                 </tbody>
                             </table>
