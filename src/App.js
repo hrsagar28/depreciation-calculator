@@ -4,25 +4,21 @@ import Tooltip from './components/Tooltip';
 import { useDebounce } from './utils/helpers';
 import AssetCard from './components/AssetCard';
 import BlockCard from './components/BlockCard';
-import { FY_LABEL, SCHEDULE_II_WDV_RATES, SCHEDULE_II_SLM_USEFUL_LIFE, INCOME_TAX_BLOCKS, EXCLUDED_BLOCK_TYPES_FOR_ADDITIONAL_DEP } from './config';
+import { FY_LABEL, INCOME_TAX_BLOCKS } from './config';
 import AssetDetailPanel from './components/AssetDetailPanel';
 import ConfirmationModal from './components/ConfirmationModal';
-import AdditionalDepreciationModal from './components/AdditionalDepreciationModal';
 import BlockDetailPanel from './components/BlockDetailPanel';
 import PrintStyles from './components/PrintStyles';
 import { calculateCompaniesActDepreciation, calculateIncomeTaxDepreciation } from './utils/depreciationCalculations';
-import PrintSummaryTable from './components/PrintSummaryTable';
-import PrintAssetDetail from './components/PrintAssetDetail';
 import PrintLayout from './components/PrintLayout';
 import SummaryReport from './components/SummaryReport';
 import Toast from './components/Toast';
 import EmptyState from './components/EmptyState';
 import ActSelectionScreen from './components/ActSelectionScreen';
-import { SkeletonCard, SkeletonSummary } from './components/SkeletonLoader';
+import { SkeletonSummary } from './components/SkeletonLoader';
 import IncomeTaxView from './components/IncomeTaxView';
 import CompaniesActView from './components/CompaniesActView';
 import DeferredTaxCalculator from './components/DeferredTaxCalculator';
-import { PieChart, Pie, Cell, Tooltip as ChartTooltip, ResponsiveContainer, Legend } from 'recharts';
 // PapaParse is loaded via a script tag in the App component to avoid import errors.
 
 
@@ -75,7 +71,7 @@ export default function App() {
             };
             localStorage.setItem('depreciationAppStateV9', JSON.stringify(dataToSave));
             localStorage.setItem('depreciationAppTheme', stateToSave.theme);
-        } catch (error) {
+        } catch (error) => {
             console.error("Failed to save state to localStorage", error);
             showToast("Error: Could not save data.");
         }
@@ -206,18 +202,6 @@ export default function App() {
         setAssetBlocks(prev => prev.map(block => block.id === id ? {...block, isSelected} : block));
     }, []);
 
-    const handleDeleteAssetRequest = () => {
-        if (selectedAssetCount > 0) {
-            setIsAssetDeleteModalOpen(true);
-        }
-    };
-
-    const handleDeleteBlockRequest = () => {
-        if (selectedBlockCount > 0) {
-            setIsBlockDeleteModalOpen(true);
-        }
-    };
-
     const handleConfirmAssetDelete = useCallback(() => {
       const originalAssets = [...assets];
       const assetsToDelete = assets.filter(a => a.isSelected);
@@ -259,40 +243,147 @@ export default function App() {
         setMethod(newMethod);
     };
 
-const companiesActCalculationResults = useMemo(() => {
-    return assets.map(asset => ({
-        id: asset.id,
-        asset,
-        details: calculateCompaniesActDepreciation(asset, method)
-    }));
-}, [assets, method]);
+    const handleDeleteAssetRequest = () => {
+        if (selectedAssetCount > 0) {
+            setIsAssetDeleteModalOpen(true);
+        }
+    };
 
-const incomeTaxCalculationResults = useMemo(() => {
-    return assetBlocks.map(block => ({
-        id: block.id,
-        block,
-        details: calculateIncomeTaxDepreciation(block)
-    }));
-}, [assetBlocks]);
+    const handleDeleteBlockRequest = () => {
+        if (selectedBlockCount > 0) {
+            setIsBlockDeleteModalOpen(true);
+        }
+    };
+    
+    // --- CORRECTLY ORDERED LOGIC BLOCKS ---
 
+    // 1. First, the main calculations
+    const companiesActCalculationResults = useMemo(() => {
+        return assets.map(asset => ({
+            id: asset.id,
+            asset,
+            details: calculateCompaniesActDepreciation(asset, method)
+        }));
+    }, [assets, method]);
+    
+    const incomeTaxCalculationResults = useMemo(() => {
+        return assetBlocks.map(block => ({
+            id: block.id,
+            block,
+            details: calculateIncomeTaxDepreciation(block)
+        }));
+    }, [assetBlocks]);
 
+    // 2. Second, the summaries which depend on the calculations
+    const companiesActSummary = useMemo(() => {
+        const summary = { byType: {}, totals: {} };
+        const initialTypeSummary = {
+            openingGrossBlock: 0, additions: 0, disposalsCost: 0, closingGrossBlock: 0,
+            openingAccumulatedDepreciation: 0, openingNetBlock: 0, depreciationForYear: 0,
+            closingAccumulatedDepreciation: 0, closingNetBlock: 0
+        };
+        companiesActCalculationResults.forEach(({asset, details}) => {
+            const type = asset.assetType || 'unclassified';
+            if (!summary.byType[type]) {
+                summary.byType[type] = {
+                    ...initialTypeSummary,
+                    name: type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                    internalName: type,
+                };
+            }
+            const calc = details;
+            summary.byType[type].openingGrossBlock += calc.openingGrossBlock;
+            summary.byType[type].additions += calc.grossBlockAdditions;
+            summary.byType[type].disposalsCost += calc.disposalsCost;
+            summary.byType[type].closingGrossBlock += calc.closingGrossBlock;
+            summary.byType[type].openingAccumulatedDepreciation += calc.openingAccumulatedDepreciation;
+            summary.byType[type].openingNetBlock += calc.openingWDV;
+            summary.byType[type].depreciationForYear += calc.depreciationForYear;
+            summary.byType[type].closingAccumulatedDepreciation += calc.closingAccumulatedDepreciation;
+            summary.byType[type].closingNetBlock += calc.closingWDV;
+        });
+        summary.totals = Object.values(summary.byType).reduce((acc, curr) => {
+            Object.keys(acc).forEach(key => { if (typeof acc[key] === 'number') acc[key] += curr[key]; });
+            return acc;
+        }, { ...initialTypeSummary });
+        return summary;
+    }, [companiesActCalculationResults]);
 
+    const incomeTaxSummary = useMemo(() => {
+        const summary = { byType: {}, totals: {} };
+        const initialBlockSummary = {
+            openingWDV: 0, additions: 0, saleValue: 0, wdvForDep: 0,
+            depreciationForYear: 0, closingNetBlock: 0, shortTermCapitalGainLoss: 0
+        };
+        incomeTaxCalculationResults.forEach(({block, details}) => {
+            const type = block.blockType || 'unclassified';
+            if (!summary.byType[type]) {
+                summary.byType[type] = {
+                    ...initialBlockSummary,
+                    name: INCOME_TAX_BLOCKS[type]?.name || 'Unclassified Block',
+                    internalName: type,
+                };
+            }
+            const calc = details;
+            summary.byType[type].openingWDV += calc.openingWDV;
+            summary.byType[type].additions += calc.additions;
+            summary.byType[type].saleValue += calc.saleValue;
+            summary.byType[type].wdvForDep += calc.wdvForDep;
+            summary.byType[type].depreciationForYear += calc.depreciationForYear;
+            summary.byType[type].closingNetBlock += calc.closingWDV;
+            summary.byType[type].shortTermCapitalGainLoss += calc.shortTermCapitalGainLoss;
+        });
+        summary.totals = Object.values(summary.byType).reduce((acc, curr) => {
+            Object.keys(acc).forEach(key => { if (typeof acc[key] === 'number') acc[key] += curr[key]; });
+            return acc;
+        }, { ...initialBlockSummary });
+        return summary;
+    }, [incomeTaxCalculationResults]);
+
+    // 3. Third, the filtered items which depend on the calculations
+    const filteredItems = useMemo(() => {
+        const results = act === 'companies' ? companiesActCalculationResults : incomeTaxCalculationResults;
+        if (act === 'companies') {
+            if (filterType) {
+                return results.filter(result => result.asset.assetType === filterType);
+            }
+            if (searchTerm) {
+                const lowercasedFilter = searchTerm.toLowerCase();
+                return results.filter(result =>
+                    result.asset.name.toLowerCase().includes(lowercasedFilter)
+                );
+            }
+        } else if (act === 'income_tax') {
+            if (filterType) {
+                return results.filter(result => result.block.blockType === filterType);
+            }
+            if (blockSearchTerm) {
+                const lowercasedFilter = blockSearchTerm.toLowerCase();
+                return results.filter(result =>
+                    result.block.name.toLowerCase().includes(lowercasedFilter)
+                );
+            }
+        }
+        return results;
+    }, [act, companiesActCalculationResults, incomeTaxCalculationResults, filterType, searchTerm, blockSearchTerm]);
+
+    // 4. Finally, all other hooks that depend on the above variables
     const selectedAssetCount = useMemo(() => assets.filter(a => a.isSelected).length, [assets]);
     const selectedBlockCount = useMemo(() => assetBlocks.filter(b => b.isSelected).length, [assetBlocks]);
 
     const selectedAssetData = useMemo(() => {
         if (act === 'companies') {
-            return calculationResults.find(r => r.id === selectedAssetId);
+            return companiesActCalculationResults.find(r => r.id === selectedAssetId);
         }
         return null;
-    }, [selectedAssetId, calculationResults, act]);
+    }, [selectedAssetId, companiesActCalculationResults, act]);
 
     const selectedBlockData = useMemo(() => {
         if (act === 'income_tax') {
-            return calculationResults.find(r => r.id === selectedBlockId);
+            return incomeTaxCalculationResults.find(r => r.id === selectedBlockId);
         }
         return null;
-    }, [selectedBlockId, calculationResults, act]);
+    }, [selectedBlockId, incomeTaxCalculationResults, act]);
 
     const allVisibleAssetsSelected = useMemo(() => {
         if (act !== 'companies') return false;
@@ -336,14 +427,8 @@ const incomeTaxCalculationResults = useMemo(() => {
         }));
     }, [filteredItems, allVisibleBlocksSelected]);
 
-
-
-   
-
-    // FIX: Restructured the main return block to ensure HelpModal is always available.
     return (
         <div className={theme}>
-            {/* The HelpModal is now at the top level, so it can be opened from any screen. */}
             <HelpModal isOpen={isHelpModalOpen} onClose={() => setIsHelpModalOpen(false)} topic={helpTopic} />
             
             {isLoading ? (
@@ -358,12 +443,12 @@ const incomeTaxCalculationResults = useMemo(() => {
                     
                     <div className="print-only">
                         <PrintLayout
-    calculationResults={act === 'companies' ? companiesActCalculationResults : incomeTaxCalculationResults}
-    method={method}
-    FY_LABEL={FY_LABEL}
-    summaryData={act === 'companies' ? companiesActSummary : incomeTaxSummary}
-    act={act}
-/>
+                            calculationResults={act === 'companies' ? companiesActCalculationResults : incomeTaxCalculationResults}
+                            method={method}
+                            FY_LABEL={FY_LABEL}
+                            summaryData={act === 'companies' ? companiesActSummary : incomeTaxSummary}
+                            act={act}
+                        />
                     </div>
 
                     <div className="no-print bg-gradient-to-br from-slate-50 to-slate-200 dark:from-slate-900 dark:to-slate-950 min-h-screen text-slate-800 font-sans">
@@ -400,48 +485,53 @@ const incomeTaxCalculationResults = useMemo(() => {
                             </header>
 
                             {isLoading ? <SkeletonSummary /> : <SummaryReport summaryData={act === 'companies' ? companiesActSummary : incomeTaxSummary} onFilterChange={setFilterType} showToast={showToast} filterType={filterType} theme={theme} act={act} setAct={handleSelectAct} />}
-<DeferredTaxCalculator
-  companiesActDepreciation={companiesActSummary.totals.depreciationForYear}
-  incomeTaxDepreciation={incomeTaxSummary.totals.depreciationForYear}
-/>
+                            
+                            <DeferredTaxCalculator
+                              companiesActDepreciation={companiesActSummary.totals.depreciationForYear}
+                              incomeTaxDepreciation={incomeTaxSummary.totals.depreciationForYear}
+                            />
 
-{act === 'companies' ? (
-    <CompaniesActView
-      handleMethodChange={handleMethodChange}
-      method={method}
-      assets={assets}
-      addAsset={addAsset}
-      filteredItems={filteredItems}
-      handleSelectAsset={handleSelectAsset}
-      setSelectedAssetId={setSelectedAssetId}
-      selectedAssetCount={selectedAssetCount}
-      allVisibleAssetsSelected={allVisibleAssetsSelected}
-      handleSelectAllAssets={handleSelectAllAssets}
-      handleDeleteAssetRequest={handleDeleteAssetRequest}
-      searchTerm={searchTerm}
-      setSearchTerm={setSearchTerm}
-      filterType={filterType}
-      setFilterType={setFilterType}
-      isLoading={isLoading}
-    />
-  ) : (
-    <IncomeTaxView
-      assetBlocks={assetBlocks}
-      addBlock={addBlock}
-      filteredItems={filteredItems}
-      handleSelectBlock={handleSelectBlock}
-      setSelectedBlockId={setSelectedBlockId}
-      selectedBlockCount={selectedBlockCount}
-      allVisibleBlocksSelected={allVisibleBlocksSelected}
-      handleSelectAllBlocks={handleSelectAllBlocks}
-      handleDeleteBlockRequest={handleDeleteBlockRequest}
-      blockSearchTerm={blockSearchTerm}
-      setBlockSearchTerm={setBlockSearchTerm}
-      filterType={filterType}
-      setFilterType={setFilterType}
-      isLoading={isLoading}
-    />
-  )}
+                            {act === 'companies' ? (
+                                <CompaniesActView
+                                  handleMethodChange={handleMethodChange}
+                                  method={method}
+                                  assets={assets}
+                                  addAsset={addAsset}
+                                  filteredItems={filteredItems}
+                                  handleSelectAsset={handleSelectAsset}
+                                  setSelectedAssetId={setSelectedAssetId}
+                                  selectedAssetCount={selectedAssetCount}
+                                  allVisibleAssetsSelected={allVisibleAssetsSelected}
+                                  handleSelectAllAssets={handleSelectAllAssets}
+                                  handleDeleteAssetRequest={handleDeleteAssetRequest}
+                                  searchTerm={searchTerm}
+                                  setSearchTerm={setSearchTerm}
+                                  filterType={filterType}
+                                  setFilterType={setFilterType}
+                                  isLoading={isLoading}
+                                  selectedAssetData={selectedAssetData}
+                                  updateAsset={updateAsset}
+                                />
+                              ) : (
+                                <IncomeTaxView
+                                  assetBlocks={assetBlocks}
+                                  addBlock={addBlock}
+                                  filteredItems={filteredItems}
+                                  handleSelectBlock={handleSelectBlock}
+                                  setSelectedBlockId={setSelectedBlockId}
+                                  selectedBlockCount={selectedBlockCount}
+                                  allVisibleBlocksSelected={allVisibleBlocksSelected}
+                                  handleSelectAllBlocks={handleSelectAllBlocks}
+                                  handleDeleteBlockRequest={handleDeleteBlockRequest}
+                                  blockSearchTerm={blockSearchTerm}
+                                  setBlockSearchTerm={setBlockSearchTerm}
+                                  filterType={filterType}
+                                  setFilterType={setFilterType}
+                                  isLoading={isLoading}
+                                  selectedBlockData={selectedBlockData}
+                                  updateBlock={updateBlock}
+                                />
+                              )}
                         </div>
                     </div>
                 </>
