@@ -64,14 +64,20 @@ export default function App() {
     const saveState = useCallback((stateToSave) => {
         try {
             const dataToSave = {
-                assets: stateToSave.assets.map(({ isNew, ...rest }) => rest),
-                assetBlocks: stateToSave.assetBlocks.map(({ isNew, ...rest }) => rest),
+                assets: stateToSave.assets.map(asset => {
+                    const { isNew, ...rest } = asset;
+                    return rest;
+                }),
+                assetBlocks: stateToSave.assetBlocks.map(block => {
+                    const { isNew, ...rest } = block;
+                    return rest;
+                }),
                 method: stateToSave.method,
                 act: stateToSave.act,
             };
             localStorage.setItem('depreciationAppStateV9', JSON.stringify(dataToSave));
             localStorage.setItem('depreciationAppTheme', stateToSave.theme);
-        } catch (error) => {
+        } catch (error) {
             console.error("Failed to save state to localStorage", error);
             showToast("Error: Could not save data.");
         }
@@ -522,7 +528,7 @@ export default function App() {
                                   selectedBlockCount={selectedBlockCount}
                                   allVisibleBlocksSelected={allVisibleBlocksSelected}
                                   handleSelectAllBlocks={handleSelectAllBlocks}
-                                  handleDeleteBlockRequest={handleDeleteBlockRequest}
+                                  handleDeleteAssetRequest={handleDeleteAssetRequest}
                                   blockSearchTerm={blockSearchTerm}
                                   setBlockSearchTerm={setBlockSearchTerm}
                                   filterType={filterType}
