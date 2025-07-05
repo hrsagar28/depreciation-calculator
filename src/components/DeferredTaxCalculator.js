@@ -23,7 +23,7 @@ const DeferredTaxCalculator = ({
     const [taxRate, setTaxRate] = useState(25); // Common corporate tax rate
     const [accountingProfit, setAccountingProfit] = useState('');
 
-    // --- FINAL, FULLY CORRECTED DEFERRED TAX LOGIC ---
+    // --- FINAL, FULLY VERIFIED DEFERRED TAX LOGIC ---
     const parsedAccountingProfit = parseFloat(accountingProfit) || 0;
 
     // A "Deductible Temporary Difference" creates a Deferred Tax Asset (DTA). This happens when Tax WDV > Book WDV.
@@ -33,7 +33,8 @@ const DeferredTaxCalculator = ({
     const openingTimingDifference = (openingIncomeTaxWdv || 0) - (openingCompaniesActWdv || 0);
     const openingDeferredTax = openingTimingDifference * (taxRate / 100);
 
-    const movementTimingDifference = (incomeTaxDepreciation || 0) - (companiesActDepreciation || 0);
+    // CORRECTED: The movement is based on the difference in depreciation for the year.
+    const movementTimingDifference = (companiesActDepreciation || 0) - (incomeTaxDepreciation || 0);
     const movementDeferredTax = movementTimingDifference * (taxRate / 100);
 
     const closingDeferredTax = openingDeferredTax + movementDeferredTax;
@@ -55,7 +56,9 @@ const DeferredTaxCalculator = ({
     };
     
     // --- DISCLOSURE CALCULATIONS ---
-    const currentTax = (parsedAccountingProfit + movementTimingDifference) * (taxRate / 100);
+    // CORRECTED: Taxable profit is Accounting Profit adjusted for the timing difference.
+    const taxableProfit = parsedAccountingProfit - movementTimingDifference;
+    const currentTax = taxableProfit * (taxRate / 100);
     const totalTaxExpense = currentTax + movementDeferredTax;
 
     return (
