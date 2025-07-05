@@ -21,6 +21,7 @@ import ActSelectionScreen from './components/ActSelectionScreen';
 import { SkeletonCard, SkeletonSummary } from './components/SkeletonLoader';
 import IncomeTaxView from './components/IncomeTaxView';
 import CompaniesActView from './components/CompaniesActView';
+import DeferredTaxCalculator from './components/DeferredTaxCalculator';
 import { PieChart, Pie, Cell, Tooltip as ChartTooltip, ResponsiveContainer, Legend } from 'recharts';
 // PapaParse is loaded via a script tag in the App component to avoid import errors.
 
@@ -258,115 +259,154 @@ export default function App() {
         setMethod(newMethod);
     };
 
-    const calculationResults = useMemo(() => {
-        if (act === 'companies') {
-            return assets.map(asset => ({
-                id: asset.id,
-                asset,
-                details: calculateCompaniesActDepreciation(asset, method)
-            }));
-        }
-        if (act === 'income_tax') {
-            return assetBlocks.map(block => ({
-                id: block.id,
-                block,
-                details: calculateIncomeTaxDepreciation(block)
-            }));
-        }
-        return [];
-    }, [assets, assetBlocks, method, act]);
+const companiesActCalculationResults = useMemo(() => {
+    return assets.map(asset => ({
+        id: asset.id,
+        asset,
+        details: calculateCompaniesActDepreciation(asset, method)
+    }));
+}, [assets, method]);
 
-    const summaryData = useMemo(() => {
-        const summary = { byType: {} };
+const incomeTaxCalculationResults = useMemo(() => {
+    return assetBlocks.map(block => ({
+        id: block.id,
+        block,
+        details: calculateIncomeTaxDepreciation(block)
+    }));
+}, [assetBlocks]);
 
-        if (act === 'companies') {
-            const initialTypeSummary = {
-                openingGrossBlock: 0, additions: 0, disposalsCost: 0, closingGrossBlock: 0,
-                openingAccumulatedDepreciation: 0, openingNetBlock: 0, depreciationForYear: 0,
-                closingAccumulatedDepreciation: 0, closingNetBlock: 0
+
+const companiesActSummary = useMemo(() => {
+    const summary = { byType: {}, totals: {} };
+    const initialTypeSummary = {
+        openingGrossBlock: 0, additions: 0, disposalsCost: 0, closingGrossBlock: 0,
+        openingAccumulatedDepreciation: 0, openingNetBlock: 0, depreciationForYear: 0,
+        closingAccumulatedDepreciation: 0, closingNetBlock: 0
+    };
+    companiesActCalculationResults.forEach(({asset, details}) => {
+        const type = asset.assetType || 'unclassified';
+        if (!summary.byType[type]) {
+            summary.byType[type] = {
+                ...initialTypeSummary,
+                name: type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                internalName: type,
             };
-            calculationResults.forEach(({asset, details}) => {
-                const type = asset.assetType || 'unclassified';
-                if (!summary.byType[type]) {
-                    summary.byType[type] = {
-                        ...initialTypeSummary,
-                        name: type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-                        internalName: type,
-                    };
-                }
-                const calc = details;
-                summary.byType[type].openingGrossBlock += calc.openingGrossBlock;
-                summary.byType[type].additions += calc.grossBlockAdditions;
-                summary.byType[type].disposalsCost += calc.disposalsCost;
-                summary.byType[type].closingGrossBlock += calc.closingGrossBlock;
-                summary.byType[type].openingAccumulatedDepreciation += calc.openingAccumulatedDepreciation;
-                summary.byType[type].openingNetBlock += calc.openingWDV;
-                summary.byType[type].depreciationForYear += calc.depreciationForYear;
-                summary.byType[type].closingAccumulatedDepreciation += calc.closingAccumulatedDepreciation;
-                summary.byType[type].closingNetBlock += calc.closingWDV;
-            });
-            summary.totals = Object.values(summary.byType).reduce((acc, curr) => {
-                Object.keys(acc).forEach(key => { if (typeof acc[key] === 'number') acc[key] += curr[key]; });
-                return acc;
-            }, { ...initialTypeSummary });
-        } else { // Income Tax Summary
-            const initialBlockSummary = {
-                openingWDV: 0, additions: 0, saleValue: 0, wdvForDep: 0,
-                depreciationForYear: 0, closingNetBlock: 0, shortTermCapitalGainLoss: 0
+        }
+        const calc = details;
+        summary.byType[type].openingGrossBlock += calc.openingGrossBlock;
+        summary.byType[type].additions += calc.grossBlockAdditions;
+        summary.byType[type].disposalsCost += calc.disposalsCost;
+        summary.byType[type].closingGrossBlock += calc.closingGrossBlock;
+        summary.byType[type].openingAccumulatedDepreciation += calc.openingAccumulatedDepreciation;
+        summary.byType[type].openingNetBlock += calc.openingWDV;
+        summary.byType[type].depreciationForYear += calc.depreciationForYear;
+        summary.byType[type].closingAccumulatedDepreciation += calc.closingAccumulatedDepreciation;
+        summary.byType[type].closingNetBlock += calc.closingWDV;
+    });
+    summary.totals = Object.values(summary.byType).reduce((acc, curr) => {
+        Object.keys(acc).forEach(key => { if (typeof acc[key] === 'number') acc[key] += curr[key]; });
+        return acc;
+    }, { ...initialTypeSummary });
+    return summary;
+}, [companiesActCalculationResults]);
+
+const incomeTaxSummary = useMemo(() => {
+    const summary = { byType: {}, totals: {} };
+    const initialBlockSummary = {
+        openingWDV: 0, additions: 0, saleValue: 0, wdvForDep: 0,
+        depreciationForYear: 0, closingNetBlock: 0, shortTermCapitalGainLoss: 0
+    };
+    incomeTaxCalculationResults.forEach(({block, details}) => {
+        const type = block.blockType || 'unclassified';
+        if (!summary.byType[type]) {
+            summary.byType[type] = {
+                ...initialBlockSummary,
+                name: INCOME_TAX_BLOCKS[type]?.name || 'Unclassified Block',
+                internalName: type,
             };
-            calculationResults.forEach(({block, details}) => {
-                const type = block.blockType || 'unclassified';
-                if (!summary.byType[type]) {
-                    summary.byType[type] = {
-                        ...initialBlockSummary,
-                        name: INCOME_TAX_BLOCKS[type]?.name || 'Unclassified Block',
-                        internalName: type,
-                    };
-                }
-                const calc = details;
-                summary.byType[type].openingWDV += calc.openingWDV;
-                summary.byType[type].additions += calc.additions;
-                summary.byType[type].saleValue += calc.saleValue;
-                summary.byType[type].wdvForDep += calc.wdvForDep;
-                summary.byType[type].depreciationForYear += calc.depreciationForYear;
-                summary.byType[type].closingNetBlock += calc.closingWDV;
-                summary.byType[type].shortTermCapitalGainLoss += calc.shortTermCapitalGainLoss;
-            });
-
-            summary.totals = Object.values(summary.byType).reduce((acc, curr) => {
-                Object.keys(acc).forEach(key => { if (typeof acc[key] === 'number') acc[key] += curr[key]; });
-                return acc;
-            }, { ...initialBlockSummary });
         }
+        const calc = details;
+        summary.byType[type].openingWDV += calc.openingWDV;
+        summary.byType[type].additions += calc.additions;
+        summary.byType[type].saleValue += calc.saleValue;
+        summary.byType[type].wdvForDep += calc.wdvForDep;
+        summary.byType[type].depreciationForYear += calc.depreciationForYear;
+        summary.byType[type].closingNetBlock += calc.closingWDV;
+        summary.byType[type].shortTermCapitalGainLoss += calc.shortTermCapitalGainLoss;
+    });
+    summary.totals = Object.values(summary.byType).reduce((acc, curr) => {
+        Object.keys(acc).forEach(key => { if (typeof acc[key] === 'number') acc[key] += curr[key]; });
+        return acc;
+    }, { ...initialBlockSummary });
+    return summary;
+}, [incomeTaxCalculationResults]);
 
-        return summary;
-    }, [calculationResults, act]);
 
-    const filteredItems = useMemo(() => {
-        let results = calculationResults;
-        if (act === 'companies') {
-            if (filterType) {
-                results = results.filter(result => result.asset.assetType === filterType);
-            }
-            if (searchTerm) {
-                const lowercasedFilter = searchTerm.toLowerCase();
-                results = results.filter(result =>
-                    result.asset.name.toLowerCase().includes(lowercasedFilter)
-                );
-            }
-        } else if (act === 'income_tax') {
-            if (filterType) {
-                results = results.filter(result => result.block.blockType === filterType);
-            }
-            if (blockSearchTerm) {
-                const lowercasedFilter = blockSearchTerm.toLowerCase();
-                results = results.filter(result =>
-                    result.block.name.toLowerCase().includes(lowercasedFilter)
-                );
-            }
+const companiesActSummary = useMemo(() => {
+    const summary = { byType: {}, totals: {} };
+    const initialTypeSummary = {
+        openingGrossBlock: 0, additions: 0, disposalsCost: 0, closingGrossBlock: 0,
+        openingAccumulatedDepreciation: 0, openingNetBlock: 0, depreciationForYear: 0,
+        closingAccumulatedDepreciation: 0, closingNetBlock: 0
+    };
+    companiesActCalculationResults.forEach(({asset, details}) => {
+        const type = asset.assetType || 'unclassified';
+        if (!summary.byType[type]) {
+            summary.byType[type] = {
+                ...initialTypeSummary,
+                name: type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                internalName: type,
+            };
         }
-        return results;
-    }, [calculationResults, filterType, searchTerm, blockSearchTerm, act]);
+        const calc = details;
+        summary.byType[type].openingGrossBlock += calc.openingGrossBlock;
+        summary.byType[type].additions += calc.grossBlockAdditions;
+        summary.byType[type].disposalsCost += calc.disposalsCost;
+        summary.byType[type].closingGrossBlock += calc.closingGrossBlock;
+        summary.byType[type].openingAccumulatedDepreciation += calc.openingAccumulatedDepreciation;
+        summary.byType[type].openingNetBlock += calc.openingWDV;
+        summary.byType[type].depreciationForYear += calc.depreciationForYear;
+        summary.byType[type].closingAccumulatedDepreciation += calc.closingAccumulatedDepreciation;
+        summary.byType[type].closingNetBlock += calc.closingWDV;
+    });
+    summary.totals = Object.values(summary.byType).reduce((acc, curr) => {
+        Object.keys(acc).forEach(key => { if (typeof acc[key] === 'number') acc[key] += curr[key]; });
+        return acc;
+    }, { ...initialTypeSummary });
+    return summary;
+}, [companiesActCalculationResults]);
+
+const incomeTaxSummary = useMemo(() => {
+    const summary = { byType: {}, totals: {} };
+    const initialBlockSummary = {
+        openingWDV: 0, additions: 0, saleValue: 0, wdvForDep: 0,
+        depreciationForYear: 0, closingNetBlock: 0, shortTermCapitalGainLoss: 0
+    };
+    incomeTaxCalculationResults.forEach(({block, details}) => {
+        const type = block.blockType || 'unclassified';
+        if (!summary.byType[type]) {
+            summary.byType[type] = {
+                ...initialBlockSummary,
+                name: INCOME_TAX_BLOCKS[type]?.name || 'Unclassified Block',
+                internalName: type,
+            };
+        }
+        const calc = details;
+        summary.byType[type].openingWDV += calc.openingWDV;
+        summary.byType[type].additions += calc.additions;
+        summary.byType[type].saleValue += calc.saleValue;
+        summary.byType[type].wdvForDep += calc.wdvForDep;
+        summary.byType[type].depreciationForYear += calc.depreciationForYear;
+        summary.byType[type].closingNetBlock += calc.closingWDV;
+        summary.byType[type].shortTermCapitalGainLoss += calc.shortTermCapitalGainLoss;
+    });
+    summary.totals = Object.values(summary.byType).reduce((acc, curr) => {
+        Object.keys(acc).forEach(key => { if (typeof acc[key] === 'number') acc[key] += curr[key]; });
+        return acc;
+    }, { ...initialBlockSummary });
+    return summary;
+}, [incomeTaxCalculationResults]);
+
 
     const selectedAssetCount = useMemo(() => assets.filter(a => a.isSelected).length, [assets]);
     const selectedBlockCount = useMemo(() => assetBlocks.filter(b => b.isSelected).length, [assetBlocks]);
@@ -448,13 +488,13 @@ export default function App() {
                     <PrintStyles />
                     
                     <div className="print-only">
-                        <PrintLayout 
-                            calculationResults={calculationResults}
-                            method={method}
-                            FY_LABEL={FY_LABEL}
-                            summaryData={summaryData}
-                            act={act}
-                        />
+                        <PrintLayout
+    calculationResults={act === 'companies' ? companiesActCalculationResults : incomeTaxCalculationResults}
+    method={method}
+    FY_LABEL={FY_LABEL}
+    summaryData={act === 'companies' ? companiesActSummary : incomeTaxSummary}
+    act={act}
+/>
                     </div>
 
                     <div className="no-print bg-gradient-to-br from-slate-50 to-slate-200 dark:from-slate-900 dark:to-slate-950 min-h-screen text-slate-800 font-sans">
@@ -490,7 +530,11 @@ export default function App() {
                                 </div>
                             </header>
 
-                            {isLoading ? <SkeletonSummary /> : <SummaryReport summaryData={summaryData} onFilterChange={setFilterType} showToast={showToast} filterType={filterType} theme={theme} act={act} setAct={handleSelectAct} />}
+                            {isLoading ? <SkeletonSummary /> : <SummaryReport summaryData={act === 'companies' ? companiesActSummary : incomeTaxSummary} onFilterChange={setFilterType} showToast={showToast} filterType={filterType} theme={theme} act={act} setAct={handleSelectAct} />}
+<DeferredTaxCalculator
+  companiesActDepreciation={companiesActSummary.totals.depreciationForYear}
+  incomeTaxDepreciation={incomeTaxSummary.totals.depreciationForYear}
+/>
 
 {act === 'companies' ? (
     <CompaniesActView
