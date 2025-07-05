@@ -15,23 +15,32 @@ const ActSelectionScreen = ({ onSelectCalculationMode, theme, toggleTheme, openH
                      <h1 className="text-4xl md:text-5xl font-bold text-slate-800 dark:text-slate-100">Depreciation Calculator</h1>
                      <p className="text-lg text-slate-600 dark:text-slate-400 mt-2">For the Financial Year {FY_LABEL}</p>
                 </div>
-                <div className="w-full max-w-4xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg border border-white/30 dark:border-slate-700/50 rounded-2xl shadow-lg p-8">
-                    <h2 className="text-2xl font-bold text-center text-slate-800 dark:text-slate-100 mb-8">Choose Calculation Standard</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="w-full max-w-5xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg border border-white/30 dark:border-slate-700/50 rounded-2xl shadow-lg p-8">
+                    <h2 className="text-2xl font-bold text-center text-slate-800 dark:text-slate-100 mb-8">Choose a Tool</h2>
+                    {/* UPDATED: Changed grid to support 3 columns on large screens */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {/* Companies Act */}
                         <div className="flex flex-col">
                             <button onClick={() => onSelectCalculationMode('companies')} className="p-6 bg-indigo-600 text-white rounded-xl shadow-lg hover:bg-indigo-700 transition-all duration-300 transform hover:scale-105 flex flex-col items-center justify-center text-center h-full">
                                 <svg className="h-12 w-12 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h6m-6 4h6m-6 4h6" /></svg>
                                 <h3 className="text-xl font-bold">Companies Act, 2013</h3>
-                                <p className="text-sm mt-1 opacity-80">Calculate on individual assets using SLM or WDV.</p>
+                                <p className="text-sm mt-1 opacity-80">Calculate book depreciation on individual assets.</p>
                             </button>
                         </div>
                         {/* Income Tax Act */}
-                        <div className="flex flex-col">
+                         <div className="flex flex-col">
                            <button onClick={() => onSelectCalculationMode('income_tax')} className="p-6 bg-teal-600 text-white rounded-xl shadow-lg hover:bg-teal-700 transition-all duration-300 transform hover:scale-105 flex flex-col items-center justify-center text-center h-full">
                                 <svg className="h-12 w-12 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                                 <h3 className="text-xl font-bold">Income Tax Act, 1961</h3>
-                                <p className="text-sm mt-1 opacity-80">Calculate on block of assets using WDV.</p>
+                                <p className="text-sm mt-1 opacity-80">Calculate tax depreciation on asset blocks.</p>
+                            </button>
+                        </div>
+                        {/* NEW: Deferred Tax Calculator Button */}
+                        <div className="flex flex-col md:col-span-2 lg:col-span-1">
+                           <button onClick={() => onSelectCalculationMode('deferred_tax')} className="p-6 bg-purple-600 text-white rounded-xl shadow-lg hover:bg-purple-700 transition-all duration-300 transform hover:scale-105 flex flex-col items-center justify-center text-center h-full">
+                                <svg className="h-12 w-12 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" /></svg>
+                                <h3 className="text-xl font-bold">Deferred Tax Calculator</h3>
+                                <p className="text-sm mt-1 opacity-80">Analyze timing differences and calculate DTA/DTL.</p>
                             </button>
                         </div>
                     </div>

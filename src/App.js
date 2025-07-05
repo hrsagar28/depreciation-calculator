@@ -492,12 +492,8 @@ export default function App() {
 
                             {isLoading ? <SkeletonSummary /> : <SummaryReport summaryData={act === 'companies' ? companiesActSummary : incomeTaxSummary} onFilterChange={setFilterType} showToast={showToast} filterType={filterType} theme={theme} act={act} setAct={handleSelectAct} />}
                             
-                            <DeferredTaxCalculator
-                              companiesActDepreciation={companiesActSummary.totals.depreciationForYear}
-                              incomeTaxDepreciation={incomeTaxSummary.totals.depreciationForYear}
-                            />
 
-                            {act === 'companies' ? (
+{act === 'companies' ? (
     <CompaniesActView
       handleMethodChange={handleMethodChange}
       method={method}
@@ -515,11 +511,10 @@ export default function App() {
       filterType={filterType}
       setFilterType={setFilterType}
       isLoading={isLoading}
-      // Pass the new props
       selectedAssetData={selectedAssetData}
       updateAsset={updateAsset}
     />
-  ) : (
+  ) : act === 'income_tax' ? (
     <IncomeTaxView
       assetBlocks={assetBlocks}
       addBlock={addBlock}
@@ -535,9 +530,15 @@ export default function App() {
       filterType={filterType}
       setFilterType={setFilterType}
       isLoading={isLoading}
-      // Pass the new props
       selectedBlockData={selectedBlockData}
       updateBlock={updateBlock}
+    />
+  ) : (
+    // This is the new part that will render our calculator
+    <DeferredTaxCalculator
+      companiesActDepreciation={companiesActSummary.totals.depreciationForYear}
+      incomeTaxDepreciation={incomeTaxSummary.totals.depreciationForYear}
+      setAct={setAct} // Pass setAct to allow going back
     />
   )}
                         </div>
