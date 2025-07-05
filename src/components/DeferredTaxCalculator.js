@@ -23,12 +23,12 @@ const DeferredTaxCalculator = ({
     const [taxRate, setTaxRate] = useState(25); // Common corporate tax rate
     const [accountingProfit, setAccountingProfit] = useState('');
 
-    // --- FULLY CORRECTED DEFERRED TAX LOGIC ---
+    // --- FINAL, FULLY CORRECTED DEFERRED TAX LOGIC ---
     const parsedAccountingProfit = parseFloat(accountingProfit) || 0;
 
-    // A "taxable temporary difference" arises when Tax WDV > Book WDV. This creates a Deferred Tax Liability (DTL).
-    // A "deductible temporary difference" arises when Book WDV > Tax WDV. This creates a Deferred Tax Asset (DTA).
-    // We will calculate the difference as (Tax Base - Accounting Base). A positive result is a DTL.
+    // A "Deductible Temporary Difference" creates a Deferred Tax Asset (DTA). This happens when Tax WDV > Book WDV.
+    // A "Taxable Temporary Difference" creates a Deferred Tax Liability (DTL). This happens when Book WDV > Tax WDV.
+    // Let's calculate the difference as (Tax Base - Accounting Base). A positive result is a DTA.
 
     const openingTimingDifference = (openingIncomeTaxWdv || 0) - (openingCompaniesActWdv || 0);
     const openingDeferredTax = openingTimingDifference * (taxRate / 100);
@@ -38,18 +38,18 @@ const DeferredTaxCalculator = ({
 
     const closingDeferredTax = openingDeferredTax + movementDeferredTax;
 
-    // A positive deferred tax balance now represents a DTL.
-    const isClosingLiability = closingDeferredTax >= 0;
-    const resultType = isClosingLiability ? 'Liability' : 'Asset';
-    const resultColorClass = isClosingLiability ? 'text-red-600 dark:text-red-500' : 'text-green-600 dark:text-green-500';
+    // A positive deferred tax balance now represents a DTA.
+    const isClosingAsset = closingDeferredTax >= 0;
+    const resultType = isClosingAsset ? 'Asset' : 'Liability';
+    const resultColorClass = isClosingAsset ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500';
 
     // --- JOURNAL ENTRY LOGIC (based on the movement) ---
     const journalEntry = {
         title: `Journal Entry for Movement in Deferred Tax`,
-        // If movement is positive, DTL increases or DTA decreases -> Debit P&L
-        debit: movementDeferredTax >= 0 ? 'Deferred Tax Expense (P&L)' : 'Deferred Tax Asset (B/S)',
-        // If movement is positive, DTL increases -> Credit DTL
-        credit: movementDeferredTax >= 0 ? 'Deferred Tax Liability (B/S)' : 'Deferred Tax Expense (P&L)',
+        // If movement is positive, DTA increases -> Debit DTA
+        debit: movementDeferredTax >= 0 ? 'Deferred Tax Asset (B/S)' : 'Deferred Tax Expense (P&L)',
+        // If movement is positive, DTA increases -> Credit P&L (as income)
+        credit: movementDeferredTax >= 0 ? 'Deferred Tax Expense (P&L)' : 'Deferred Tax Liability (B/S)',
         amount: Math.abs(movementDeferredTax),
         narration: `Being the movement in deferred tax for the year recognized on timing differences in depreciation.`
     };
@@ -92,7 +92,7 @@ const DeferredTaxCalculator = ({
                         {/* Summary Table */}
                         <div className="space-y-2">
                             <div className="flex justify-between py-2 border-b border-slate-200 dark:border-slate-700">
-                                <span className="text-slate-600 dark:text-slate-400">Opening Deferred Tax {openingDeferredTax >= 0 ? 'Liability' : 'Asset'}</span>
+                                <span className="text-slate-600 dark:text-slate-400">Opening Deferred Tax {openingDeferredTax >= 0 ? 'Asset' : 'Liability'}</span>
                                 <span className="font-medium text-slate-800 dark:text-slate-200">{formatCurrency(Math.abs(openingDeferredTax))}</span>
                             </div>
                             <div className="flex justify-between py-2 border-b border-slate-200 dark:border-slate-700">
@@ -138,7 +138,7 @@ const DeferredTaxCalculator = ({
                     <div className="space-y-6">
                         <div>
                             <h4 className="font-bold text-slate-800 dark:text-slate-100 mb-2">A. Deferred Tax {resultType} (Balance Sheet Note)</h4>
-                            <p>The closing balance is presented under <strong>{isClosingLiability ? 'Non-Current Liabilities' : 'Non-Current Assets'}</strong>. The movement is reconciled as follows:</p>
+                            <p>The closing balance is presented under <strong>{isClosingAsset ? 'Non-Current Assets' : 'Non-Current Liabilities'}</strong>. The movement is reconciled as follows:</p>
                             <table className="w-full max-w-md mt-2 text-left text-sm">
                                 <tbody>
                                     <tr className="border-b border-slate-200 dark:border-slate-700">
