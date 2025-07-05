@@ -1,59 +1,12 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import HelpModal from './components/HelpModal';
+import Tooltip from './components/Tooltip';
+import { formatCurrency } from './utils/helpers';
+import AssetCard from './components/AssetCard';
+import BlockCard from './components/BlockCard';
+import { FY_LABEL, SCHEDULE_II_WDV_RATES, SCHEDULE_II_SLM_USEFUL_LIFE, INCOME_TAX_BLOCKS, EXCLUDED_BLOCK_TYPES_FOR_ADDITIONAL_DEP } from './config';
 import { PieChart, Pie, Cell, Tooltip as ChartTooltip, ResponsiveContainer, Legend } from 'recharts';
 // PapaParse is loaded via a script tag in the App component to avoid import errors.
-
-// --- Config & Data ---
-const FINANCIAL_YEAR_CONFIG = {
-  start: '2024-04-01',
-  end: '2025-03-31',
-  label: '2024-25',
-};
-const { start: FY_START_DATE, end: FY_END_DATE, label: FY_LABEL } = FINANCIAL_YEAR_CONFIG;
-
-// Companies Act Data
-const SCHEDULE_II_WDV_RATES = {
-  general_machinery: 0.1810, computers_laptops: 0.6316, servers_networks: 0.3930,
-  general_furniture: 0.2589, office_equipment: 0.4507, motor_cars: 0.2589,
-  buildings_rcc: 0.0487, buildings_non_rcc: 0.0950,
-};
-const SCHEDULE_II_SLM_USEFUL_LIFE = {
-  general_machinery: 15, computers_laptops: 3, servers_networks: 6,
-  general_furniture: 10, office_equipment: 5, motor_cars: 8,
-  buildings_rcc: 60, buildings_non_rcc: 30,
-};
-
-// Income Tax Act Data (Updated)
-const INCOME_TAX_BLOCKS = {
-  'building_residential': { name: 'Building (Residential)', rate: 0.05 },
-  'building_general': { name: 'Building (Office, Factory, etc.)', rate: 0.10 },
-  'furniture_fittings': { name: 'Furniture & Fittings', rate: 0.10 },
-  'machinery_general': { name: 'Plant & Machinery (General)', rate: 0.15 },
-  'motor_cars': { name: 'Motor Cars', rate: 0.15 },
-  'office_equipment': { name: 'Office Equipment', rate: 0.15 },
-  'ships_vessels': { name: 'Ships, Vessels', rate: 0.20 },
-  'intangibles': { name: 'Intangible Assets (Patents, Copyrights)', rate: 0.25 },
-  'motor_buses_lorries_taxis_hire': { name: 'Motor Buses, Lorries & Taxis (Hiring Business)', rate: 0.30 },
-  'building_temporary': { name: 'Buildings (Temporary Structures)', rate: 0.40 },
-  'aircraft': { name: 'Aircraft', rate: 0.40 },
-  'computers_software': { name: 'Computers & Software', rate: 0.40 },
-  'energy_saving_devices': { name: 'Energy Saving Devices', rate: 0.40 },
-  'pollution_control': { name: 'Pollution Control Equipment', rate: 0.40 },
-  'books_professional': { name: 'Books (for Professionals)', rate: 0.40 },
-  'books_annual': { name: 'Books (Annual Publications)', rate: 1.00 },
-};
-
-// List of block types statutorily excluded from additional depreciation
-const EXCLUDED_BLOCK_TYPES_FOR_ADDITIONAL_DEP = [
-    'ships_vessels',
-    'motor_cars',
-    'motor_buses_lorries_taxis_hire',
-    'aircraft',
-    'intangibles',
-    'building_residential',
-    'building_general',
-    'building_temporary',
-];
 
 
 // --- Helper & Hook Functions ---
@@ -108,8 +61,6 @@ const getDaysUsed = (purchaseDateStr, disposalDateStr = null) => {
 
     return { daysUsed: Math.max(0, diffDays), daysInYear };
 };
-
-const formatCurrency = (val) => `₹${(val || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
 
 function useDebounce(value, delay) {
     const [debouncedValue, setDebouncedValue] = useState(value);
@@ -308,71 +259,6 @@ const calculateIncomeTaxDepreciation = (block) => {
 
 
 // --- UI Components ---
-
-
-const Tooltip = ({ text, children, id }) => (
-    <div className="relative flex items-center group">
-        {React.cloneElement(children, { 'aria-describedby': id })}
-        <div
-            id={id}
-            role="tooltip"
-            className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-48 bg-slate-800 text-white text-xs rounded-lg py-2 px-3 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-300 pointer-events-none z-20 shadow-lg"
-        >
-            {text}
-            <svg className="absolute text-slate-800 h-2 w-full left-0 bottom-full" x="0px" y="0px" viewBox="0 0 255 255"><polygon className="fill-current" points="0,255 127.5,127.5 255,255"/></svg>
-        </div>
-    </div>
-);
-
-const AssetCard = React.memo(({ asset, details, onSelect, onEdit }) => {
-    return (
-        <div
-            onClick={onEdit}
-            className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg border border-white/30 dark:border-slate-700/50 rounded-2xl shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 cursor-pointer"
-        >
-            <div className="p-5 sm:p-4">
-                <div className="flex justify-between items-start gap-4">
-                    <div className="flex items-center flex-shrink-0 mr-4">
-                        <input type="checkbox" checked={asset.isSelected} onChange={(e) => onSelect(asset.id, e.target.checked)} onClick={(e) => e.stopPropagation()} className="h-6 w-6 rounded border-slate-400 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 cursor-pointer" aria-label={`Select asset ${asset.name || 'Unnamed Asset'}`}/>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-lg md:text-lg font-bold text-slate-800 dark:text-slate-100 truncate">{asset.name || 'Unnamed Asset'}</p>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 capitalize">{asset.assetType ? asset.assetType.replace(/_/g, ' ') : 'No type selected'}</p>
-                    </div>
-                    <div className="text-right flex-shrink-0 ml-4">
-                        <p className="text-xl md:text-lg font-bold text-indigo-600 dark:text-indigo-400">{formatCurrency(details.depreciationForYear)}</p>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Depreciation</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-});
-
-const BlockCard = React.memo(({ block, details, onSelect, onEdit }) => {
-    return (
-        <div
-            onClick={onEdit}
-            className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg border border-white/30 dark:border-slate-700/50 rounded-2xl shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 cursor-pointer"
-        >
-            <div className="p-5 sm:p-4">
-                <div className="flex justify-between items-start gap-4">
-                    <div className="flex items-center flex-shrink-0 mr-4">
-                        <input type="checkbox" checked={block.isSelected} onChange={(e) => onSelect(block.id, e.target.checked)} onClick={(e) => e.stopPropagation()} className="h-6 w-6 rounded border-slate-400 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 cursor-pointer" aria-label={`Select block ${block.name || 'Unnamed Block'}`}/>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-lg md:text-lg font-bold text-slate-800 dark:text-slate-100 truncate">{block.name || 'Unnamed Block'}</p>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 capitalize">{block.rate ? `Rate: ${block.rate * 100}%` : 'No type selected'}</p>
-                    </div>
-                    <div className="text-right flex-shrink-0 ml-4">
-                        <p className="text-xl md:text-lg font-bold text-indigo-600 dark:text-indigo-400">{formatCurrency(details.depreciationForYear)}</p>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Depreciation</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-});
 
 const AssetDetailPanel = ({ asset, details, updateAsset, method, act, onClose }) => {
     const [newAddition, setNewAddition] = useState({ date: '', cost: '', residualValue: '' });
