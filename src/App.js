@@ -20,6 +20,7 @@ import EmptyState from './components/EmptyState';
 import ActSelectionScreen from './components/ActSelectionScreen';
 import { SkeletonCard, SkeletonSummary } from './components/SkeletonLoader';
 import IncomeTaxView from './components/IncomeTaxView';
+import CompaniesActView from './components/CompaniesActView';
 import { PieChart, Pie, Cell, Tooltip as ChartTooltip, ResponsiveContainer, Legend } from 'recharts';
 // PapaParse is loaded via a script tag in the App component to avoid import errors.
 
@@ -445,7 +446,6 @@ export default function App() {
             ) : (
                 <>
                     <PrintStyles />
-                    <AutomatedTests isVisible={isTestRunnerVisible} onClose={() => setIsTestRunnerVisible(false)} />
                     
                     <div className="print-only">
                         <PrintLayout 
