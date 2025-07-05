@@ -498,46 +498,48 @@ export default function App() {
                             />
 
                             {act === 'companies' ? (
-                                <CompaniesActView
-                                  handleMethodChange={handleMethodChange}
-                                  method={method}
-                                  assets={assets}
-                                  addAsset={addAsset}
-                                  filteredItems={filteredItems}
-                                  handleSelectAsset={handleSelectAsset}
-                                  setSelectedAssetId={setSelectedAssetId}
-                                  selectedAssetCount={selectedAssetCount}
-                                  allVisibleAssetsSelected={allVisibleAssetsSelected}
-                                  handleSelectAllAssets={handleSelectAllAssets}
-                                  handleDeleteAssetRequest={handleDeleteAssetRequest}
-                                  searchTerm={searchTerm}
-                                  setSearchTerm={setSearchTerm}
-                                  filterType={filterType}
-                                  setFilterType={setFilterType}
-                                  isLoading={isLoading}
-                                  selectedAssetData={selectedAssetData}
-                                  updateAsset={updateAsset}
-                                />
-                              ) : (
-                                <IncomeTaxView
-                                  assetBlocks={assetBlocks}
-                                  addBlock={addBlock}
-                                  filteredItems={filteredItems}
-                                  handleSelectBlock={handleSelectBlock}
-                                  setSelectedBlockId={setSelectedBlockId}
-                                  selectedBlockCount={selectedBlockCount}
-                                  allVisibleBlocksSelected={allVisibleBlocksSelected}
-                                  handleSelectAllBlocks={handleSelectAllBlocks}
-                                  handleDeleteAssetRequest={handleDeleteAssetRequest}
-                                  blockSearchTerm={blockSearchTerm}
-                                  setBlockSearchTerm={setBlockSearchTerm}
-                                  filterType={filterType}
-                                  setFilterType={setFilterType}
-                                  isLoading={isLoading}
-                                  selectedBlockData={selectedBlockData}
-                                  updateBlock={updateBlock}
-                                />
-                              )}
+    <CompaniesActView
+      handleMethodChange={handleMethodChange}
+      method={method}
+      assets={assets}
+      addAsset={addAsset}
+      filteredItems={filteredItems}
+      handleSelectAsset={handleSelectAsset}
+      setSelectedAssetId={setSelectedAssetId}
+      selectedAssetCount={selectedAssetCount}
+      allVisibleAssetsSelected={allVisibleAssetsSelected}
+      handleSelectAllAssets={handleSelectAllAssets}
+      handleDeleteAssetRequest={handleDeleteAssetRequest}
+      searchTerm={searchTerm}
+      setSearchTerm={setSearchTerm}
+      filterType={filterType}
+      setFilterType={setFilterType}
+      isLoading={isLoading}
+      // Pass the new props
+      selectedAssetData={selectedAssetData}
+      updateAsset={updateAsset}
+    />
+  ) : (
+    <IncomeTaxView
+      assetBlocks={assetBlocks}
+      addBlock={addBlock}
+      filteredItems={filteredItems}
+      handleSelectBlock={handleSelectBlock}
+      setSelectedBlockId={setSelectedBlockId}
+      selectedBlockCount={selectedBlockCount}
+      allVisibleBlocksSelected={allVisibleBlocksSelected}
+      handleSelectAllBlocks={handleSelectAllBlocks}
+      handleDeleteBlockRequest={handleDeleteBlockRequest}
+      blockSearchTerm={blockSearchTerm}
+      setBlockSearchTerm={setBlockSearchTerm}
+      filterType={filterType}
+      setFilterType={setFilterType}
+      isLoading={isLoading}
+      // Pass the new props
+      selectedBlockData={selectedBlockData}
+      updateBlock={updateBlock}
+    />
+  )}
                         </div>
                     </div>
                 </>
