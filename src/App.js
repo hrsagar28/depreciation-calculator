@@ -475,22 +475,25 @@ export default function App() {
                                 Are you sure you want to delete the selected {act === 'companies' ? selectedAssetCount : selectedBlockCount} item(s)? This action cannot be undone.
                             </ConfirmationModal>
 
-                            <header className="mb-8 relative flex flex-col sm:justify-center">
-                                <div className="w-full flex justify-end mb-4 sm:absolute sm:top-0 sm:right-0 sm:mb-0 gap-2">
-                                <button onClick={() => openHelpModal(act === 'companies' ? 'companiesAct' : 'incomeTaxAct')} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-sm hover:bg-blue-700 transition-colors text-sm">Help</button>
-                                <button onClick={toggleTheme} className="px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold rounded-lg shadow-sm hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors text-sm">
-                                        {theme === 'light' ? 'Dark' : 'Light'}
-                                    </button>
-                                </div>
-                                <div className="text-center">
-                                    <h1 className="text-4xl md:text-5xl font-bold text-slate-800 dark:text-slate-100">Depreciation Calculator</h1>
-                                    <p className="text-lg text-slate-600 dark:text-slate-400 mt-2">
-                                        {act === 'companies' ? 'As per Companies Act, 2013' : 'As per Income Tax Act, 1961'} for FY {FY_LABEL}
-                                    </p>
-                                </div>
-                            </header>
+                            <header className="mb-8 relative flex flex-col sm:flex-row sm:items-center sm:justify-between">
+    <div className="text-center sm:text-left">
+        <h1 className="text-4xl md:text-5xl font-bold text-slate-800 dark:text-slate-100">
+            {act === 'deferred_tax' ? 'Deferred Tax Analysis' : 'Depreciation Calculator'}
+        </h1>
+        <p className="text-lg text-slate-600 dark:text-slate-400 mt-2">
+            {act === 'companies' ? 'As per Companies Act, 2013' : act === 'income_tax' ? 'As per Income Tax Act, 1961' : `For FY ${FY_LABEL}`}
+        </p>
+    </div>
+    <div className="mt-4 sm:mt-0 flex justify-center sm:justify-end gap-2">
+        <button onClick={() => setAct(null)} className="px-4 py-2 bg-gray-600 text-white font-semibold rounded-lg shadow-sm hover:bg-gray-700 transition-colors text-sm">Change Tool</button>
+        <button onClick={() => openHelpModal(act === 'companies' ? 'companiesAct' : 'incomeTaxAct')} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-sm hover:bg-blue-700 transition-colors text-sm">Help</button>
+        <button onClick={toggleTheme} className="px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold rounded-lg shadow-sm hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors text-sm">
+            {theme === 'light' ? 'Dark' : 'Light'}
+        </button>
+    </div>
+</header>
 
-                            {isLoading ? <SkeletonSummary /> : <SummaryReport summaryData={act === 'companies' ? companiesActSummary : incomeTaxSummary} onFilterChange={setFilterType} showToast={showToast} filterType={filterType} theme={theme} act={act} setAct={handleSelectAct} />}
+                            {act !== 'deferred_tax' && (isLoading ? <SkeletonSummary /> : <SummaryReport summaryData={act === 'companies' ? companiesActSummary : incomeTaxSummary} onFilterChange={setFilterType} showToast={showToast} filterType={filterType} theme={theme} act={act} setAct={handleSelectAct} />)}
                             
 
 {act === 'companies' ? (
@@ -535,11 +538,13 @@ export default function App() {
     />
   ) : (
     // This is the new part that will render our calculator
-    <DeferredTaxCalculator
-      companiesActDepreciation={companiesActSummary.totals.depreciationForYear}
-      incomeTaxDepreciation={incomeTaxSummary.totals.depreciationForYear}
-      setAct={setAct} // Pass setAct to allow going back
-    />
+<DeferredTaxCalculator
+  companiesActDepreciation={companiesActSummary.totals.depreciationForYear}
+  incomeTaxDepreciation={incomeTaxSummary.totals.depreciationForYear}
+  openingCompaniesActWdv={companiesActSummary.totals.openingNetBlock}
+  openingIncomeTaxWdv={incomeTaxSummary.totals.openingWDV}
+  setAct={setAct}
+/>
   )}
                         </div>
                     </div>
