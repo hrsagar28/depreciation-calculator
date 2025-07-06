@@ -13,28 +13,24 @@ const getDaysInFY = (date) => {
     return isLeapYear(fyEndYear) ? 366 : 365;
 };
 
-export const isValidDate = (dateString, maxDate = null) => {
+export const isValidDate = (dateString, fyEndDate) => {
+    // Check for YYYY-MM-DD format
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
         return false;
     }
 
     const date = new Date(dateString);
-    // Use the provided maxDate, or default to today's date
-    const latestDate = maxDate ? new Date(maxDate) : new Date();
+    const latestDate = new Date(fyEndDate); // Use the passed-in FY end date
     const earliestDate = new Date('1900-01-01');
 
     if (isNaN(date.getTime())) {
         return false;
     }
 
-    // The crucial check: does the created date match the input string?
-    // This catches invalid dates like '2025-02-30' which JS parses to March.
-    // The toISOString() method returns a string in yyyy-MM-ddTHH:mm:ss.sssZ format. We slice the date part.
     if (date.toISOString().slice(0, 10) !== dateString) {
         return false;
     }
 
-    // Finally, check if it's within our allowed range.
     return date <= latestDate && date >= earliestDate;
 };
 
