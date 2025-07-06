@@ -100,11 +100,11 @@ const SummaryReport = ({ summaryData, onFilterChange, showToast, filterType, the
                             {act === 'companies' ? 'Asset Type Summary Schedule' : 'Asset Block Summary (Income Tax)'}
                           </h3>
                           
-                          {/* --- MOBILE VIEW --- */}
+                          {/* --- UPDATED MOBILE VIEW --- */}
                           <div className="md:hidden space-y-4">
                               {Object.values(summaryData.byType).map(typeData => (
                                   <div key={`mobile-${typeData.name}`} className={`p-4 rounded-lg border border-slate-200 dark:border-slate-700 ${filterType && filterType === typeData.internalName ? 'bg-indigo-100/50 dark:bg-indigo-900/30' : 'bg-slate-50/50 dark:bg-slate-800/20'}`}>
-                                      <h4 className="font-bold text-slate-800 dark:text-slate-100 mb-2">{typeData.name}</h4>
+                                      <h4 className="font-bold text-slate-800 dark:text-slate-100 mb-3">{typeData.name}</h4>
                                       <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
                                           {act === 'companies' ? (
                                               <>
@@ -112,6 +112,8 @@ const SummaryReport = ({ summaryData, onFilterChange, showToast, filterType, the
                                                 <div><span className="text-slate-500">Closing WDV:</span><br/><strong className="text-green-700 dark:text-green-500">{formatCurrency(typeData.closingNetBlock)}</strong></div>
                                                 <div><span className="text-slate-500">Op. Gross Block:</span><br/>{formatCurrency(typeData.openingGrossBlock)}</div>
                                                 <div><span className="text-slate-500">Additions:</span><br/>{formatCurrency(typeData.additions)}</div>
+                                                <div><span className="text-slate-500">Disposals:</span><br/>{formatCurrency(typeData.disposalsCost)}</div>
+                                                <div><span className="text-slate-500">Op. Accum. Dep.:</span><br/>{formatCurrency(typeData.openingAccumulatedDepreciation)}</div>
                                               </>
                                           ) : (
                                               <>
@@ -119,6 +121,8 @@ const SummaryReport = ({ summaryData, onFilterChange, showToast, filterType, the
                                                 <div><span className="text-slate-500">Closing WDV:</span><br/><strong className="text-green-700 dark:text-green-500">{formatCurrency(typeData.closingNetBlock)}</strong></div>
                                                 <div><span className="text-slate-500">Opening WDV:</span><br/>{formatCurrency(typeData.openingWDV)}</div>
                                                 <div><span className="text-slate-500">Additions:</span><br/>{formatCurrency(typeData.additions)}</div>
+                                                <div><span className="text-slate-500">Sale Proceeds:</span><br/>{formatCurrency(typeData.saleValue)}</div>
+                                                <div><span className="text-slate-500">STCG/(STCL):</span><br/><strong className={`${typeData.shortTermCapitalGainLoss >= 0 ? 'text-green-700' : 'text-red-700'}`}>{formatCurrency(typeData.shortTermCapitalGainLoss)}</strong></div>
                                               </>
                                           )}
                                       </div>

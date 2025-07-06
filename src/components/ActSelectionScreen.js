@@ -4,14 +4,17 @@ import { FY_LABEL } from '../config';
 const ActSelectionScreen = ({ onSelectCalculationMode, theme, toggleTheme, openHelpModal }) => {
     return (
         <div className={theme}>
-            <div className="bg-gradient-to-br from-slate-50 to-slate-200 dark:from-slate-900 dark:to-slate-950 min-h-screen text-slate-800 font-sans flex flex-col justify-center items-center p-4 overflow-hidden">
-                 <div className="absolute top-4 right-4 flex gap-2">
-                    <button onClick={() => openHelpModal('introduction')} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-sm hover:bg-blue-700 transition-colors text-sm">Help</button>
-                    <button onClick={toggleTheme} className="px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold rounded-lg shadow-sm hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors text-sm">
+            <div className="bg-gradient-to-br from-slate-50 to-slate-200 dark:from-slate-900 dark:to-slate-950 min-h-screen text-slate-800 font-sans flex flex-col justify-center items-center p-4">
+                 
+                 {/* --- UPDATED RESPONSIVE HEADER --- */}
+                 <div className="absolute top-4 right-4 flex items-center gap-2">
+                    <button onClick={() => openHelpModal('introduction')} className="px-3 py-2 md:px-4 bg-blue-600 text-white font-semibold rounded-lg shadow-sm hover:bg-blue-700 transition-colors text-xs md:text-sm">Help</button>
+                    <button onClick={toggleTheme} className="px-3 py-2 md:px-4 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold rounded-lg shadow-sm hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors text-xs md:text-sm">
                         {theme === 'light' ? 'Dark' : 'Light'}
                     </button>
                  </div>
-                <div className="text-center mb-12 animate-fade-in-down">
+
+                <div className="text-center mb-12 animate-fade-in-down pt-16 md:pt-0">
                      <h1 className="text-4xl md:text-5xl font-bold text-slate-800 dark:text-slate-100">Depreciation Calculator</h1>
                      <p className="text-lg text-slate-600 dark:text-slate-400 mt-2">For the Financial Year {FY_LABEL}</p>
                 </div>
