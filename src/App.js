@@ -34,6 +34,10 @@ export default function App() {
     // State for Income Tax Act
     const [assetBlocks, setAssetBlocks] = useState([]);
 
+    // State for Deferred Tax
+    const [deferredTaxRate, setDeferredTaxRate] = useState(25);
+    const [accountingProfit, setAccountingProfit] = useState('');
+
     const [isAssetDeleteModalOpen, setIsAssetDeleteModalOpen] = useState(false);
     const [isBlockDeleteModalOpen, setIsBlockDeleteModalOpen] = useState(false);
     const [toast, setToast] = useState({ message: '', show: false, onUndo: null });
@@ -52,6 +56,8 @@ export default function App() {
     const debouncedMethod = useDebounce(method, 300);
     const debouncedTheme = useDebounce(theme, 300);
     const debouncedAct = useDebounce(act, 300);
+    const debouncedDeferredTaxRate = useDebounce(deferredTaxRate, 300);
+    const debouncedAccountingProfit = useDebounce(accountingProfit, 300);
 
     const showToast = useCallback((message, onUndo = null) => {
         setToast({ message, show: true, onUndo });
@@ -74,6 +80,8 @@ export default function App() {
                 }),
                 method: stateToSave.method,
                 act: stateToSave.act,
+                deferredTaxRate: stateToSave.deferredTaxRate,
+                accountingProfit: stateToSave.accountingProfit,
             };
             localStorage.setItem('depreciationAppStateV9', JSON.stringify(dataToSave));
             localStorage.setItem('depreciationAppTheme', stateToSave.theme);
@@ -110,11 +118,20 @@ export default function App() {
                 setTheme(savedTheme || 'light');
 
                 if (savedState) {
-                    const { assets: savedAssets, assetBlocks: savedBlocks, method: savedMethod, act: savedAct } = JSON.parse(savedState);
+                    const { 
+                        assets: savedAssets, 
+                        assetBlocks: savedBlocks, 
+                        method: savedMethod, 
+                        act: savedAct,
+                        deferredTaxRate: savedTaxRate,
+                        accountingProfit: savedProfit
+                    } = JSON.parse(savedState);
                     setAssets(savedAssets?.map(a => ({...a, isSelected: false, isNew: false })) || []);
                     setAssetBlocks(savedBlocks?.map(b => ({...b, isSelected: false, isNew: false })) || []);
                     setMethod(savedMethod || 'WDV');
                     setAct(savedAct || null);
+                    setDeferredTaxRate(savedTaxRate || 25);
+                    setAccountingProfit(savedProfit || '');
                 } else {
                      setAssets([]);
                      setAssetBlocks([]);
@@ -135,9 +152,17 @@ export default function App() {
 
     useEffect(() => {
         if (!isLoading) {
-            saveState({ assets: debouncedAssets, assetBlocks: debouncedAssetBlocks, method: debouncedMethod, theme: debouncedTheme, act: debouncedAct });
+            saveState({ 
+                assets: debouncedAssets, 
+                assetBlocks: debouncedAssetBlocks, 
+                method: debouncedMethod, 
+                theme: debouncedTheme, 
+                act: debouncedAct,
+                deferredTaxRate: debouncedDeferredTaxRate,
+                accountingProfit: debouncedAccountingProfit
+            });
         }
-    }, [debouncedAssets, debouncedAssetBlocks, debouncedMethod, debouncedTheme, debouncedAct, isLoading, saveState]);
+    }, [debouncedAssets, debouncedAssetBlocks, debouncedMethod, debouncedTheme, debouncedAct, debouncedDeferredTaxRate, debouncedAccountingProfit, isLoading, saveState]);
 
     const toggleTheme = () => {
         setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
@@ -565,6 +590,10 @@ export default function App() {
                                       incomeTaxDepreciation={incomeTaxSummary.totals.depreciationForYear}
                                       openingCompaniesActWdv={companiesActSummary.totals.openingNetBlock}
                                       openingIncomeTaxWdv={incomeTaxSummary.totals.openingWDV}
+                                      taxRate={deferredTaxRate}
+                                      setTaxRate={setDeferredTaxRate}
+                                      accountingProfit={accountingProfit}
+                                      setAccountingProfit={setAccountingProfit}
                                       setAct={setAct}
                                     />
                                   )}

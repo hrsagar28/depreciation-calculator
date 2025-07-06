@@ -10,6 +10,7 @@ const BlockDetailPanel = ({ block, details, updateBlock, onClose }) => {
     const [isCessationModalOpen, setCessationModalOpen] = useState(false);
     const [isAdditionalDepModalOpen, setAdditionalDepModalOpen] = useState(false);
     const [tempEligibility, setTempEligibility] = useState(block.additionalDepEligibility || { isNewPlantMachinery: false, isManufacturing: false, isNotExcluded: false });
+
     const isBlockTypeEligibleForAdditionalDep = block.blockType && !EXCLUDED_BLOCK_TYPES_FOR_ADDITIONAL_DEP.includes(block.blockType);
 
     useEffect(() => {
@@ -43,6 +44,7 @@ const BlockDetailPanel = ({ block, details, updateBlock, onClose }) => {
         if (name === 'blockType') {
             const blockDetails = INCOME_TAX_BLOCKS[sanitizedValue];
             if (blockDetails) {
+                // This is the only change: the line that set the name has been removed.
                 updatedBlock.rate = blockDetails.rate;
             }
             if (EXCLUDED_BLOCK_TYPES_FOR_ADDITIONAL_DEP.includes(sanitizedValue)) {
@@ -105,7 +107,7 @@ const BlockDetailPanel = ({ block, details, updateBlock, onClose }) => {
                 <div className={`relative bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl w-full md:max-w-2xl h-full shadow-2xl flex flex-col transition-transform duration-300 ease-in-out ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}>
                     <div className="flex-shrink-0 p-6 border-b border-slate-200 dark:border-slate-700">
                         <div className="flex justify-between items-center">
-                            <input type="text" value={block.name} placeholder="Select a Block Type" onChange={(e) => updateBlock(block.id, {...block, name: e.target.value})} className="text-2xl font-bold text-slate-800 dark:text-slate-100 bg-transparent focus:outline-none focus:ring-0 border-none p-0 w-full placeholder-slate-400 dark:placeholder-slate-500"/>
+                            <input type="text" value={block.name} placeholder="Enter Block Name" onChange={(e) => updateBlock(block.id, {...block, name: e.target.value})} className="text-2xl font-bold text-slate-800 dark:text-slate-100 bg-transparent focus:outline-none focus:ring-0 border-none p-0 w-full placeholder-slate-400 dark:placeholder-slate-500"/>
                             <button onClick={handleClose} className="p-2 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" aria-label="Close panel">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
