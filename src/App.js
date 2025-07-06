@@ -19,7 +19,7 @@ import { SkeletonSummary } from './components/SkeletonLoader';
 import IncomeTaxView from './components/IncomeTaxView';
 import CompaniesActView from './components/CompaniesActView';
 import DeferredTaxCalculator from './components/DeferredTaxCalculator';
-import PrintDeferredTax from './components/PrintDeferredTax'; // Import the new component
+import PrintDeferredTax from './components/PrintDeferredTax';
 
 // PapaParse is loaded via a script tag in the App component to avoid import errors.
 
@@ -497,7 +497,6 @@ export default function App() {
                         }
                     `}</style>
                     
-                    {/* --- THIS IS THE UPDATED PRINTING LOGIC --- */}
                     <div className="print-only">
                         {act === 'deferred_tax' ? (
                             <PrintDeferredTax
@@ -538,16 +537,17 @@ export default function App() {
                                 Are you sure you want to delete the selected {act === 'companies' ? selectedAssetCount : selectedBlockCount} item(s)? This action cannot be undone.
                             </ConfirmationModal>
 
-                            <header className="mb-8 relative flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                                <div className="text-center sm:text-left">
-                                    <h1 className="text-4xl md:text-5xl font-bold text-slate-800 dark:text-slate-100">
+                            {/* --- UPDATED RESPONSIVE HEADER --- */}
+                            <header className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                                <div className="text-center md:text-left">
+                                    <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-800 dark:text-slate-100">
                                         {act === 'deferred_tax' ? 'Deferred Tax Analysis' : 'Depreciation Calculator'}
                                     </h1>
-                                    <p className="text-lg text-slate-600 dark:text-slate-400 mt-2">
+                                    <p className="text-md sm:text-lg text-slate-600 dark:text-slate-400 mt-1">
                                         {act === 'companies' ? 'As per Companies Act, 2013' : act === 'income_tax' ? 'As per Income Tax Act, 1961' : `For FY ${FY_LABEL}`}
                                     </p>
                                 </div>
-                                <div className="mt-4 sm:mt-0 flex justify-center sm:justify-end gap-2">
+                                <div className="flex justify-center items-center gap-2">
                                     <button onClick={() => setAct(null)} className="px-4 py-2 bg-gray-600 text-white font-semibold rounded-lg shadow-sm hover:bg-gray-700 transition-colors text-sm">Change Tool</button>
                                     <button onClick={() => openHelpModal(act === 'companies' ? 'companiesAct' : act === 'income_tax' ? 'incomeTaxAct' : 'deferredTax')} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-sm hover:bg-blue-700 transition-colors text-sm">Help</button>
                                     <button onClick={toggleTheme} className="px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold rounded-lg shadow-sm hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors text-sm">

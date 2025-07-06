@@ -80,27 +80,54 @@ const SummaryReport = ({ summaryData, onFilterChange, showToast, filterType, the
         labelStyle: { color: legendColor }
     };
     
-    // THIS IS THE FIX: The label color is now dynamic based on the theme.
-    const pieLabelColor = theme === 'dark' ? '#fff' : '#1e293b'; // White for dark, dark-slate for light
+    const pieLabelColor = theme === 'dark' ? '#fff' : '#1e293b';
 
     return (
       <div className={`bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg border border-white/30 dark:border-slate-700/50 rounded-2xl shadow-lg overflow-hidden mb-8 transition-all duration-700 ease-in-out transform ${isShowing ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <div className="p-4 md:p-6 cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-800/50 flex justify-between items-center" onClick={() => setIsExpanded(!isExpanded)}>
               <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Summary & Reporting</h2>
-              <div className="flex items-center gap-4">
-                  <button onClick={(e) => {e.stopPropagation(); window.print()}} className="px-4 py-2 bg-slate-600 text-white font-semibold rounded-lg shadow-sm hover:bg-slate-700 transition-colors text-sm">Print</button>
-                  <button onClick={(e) => {e.stopPropagation(); handleExport()}} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-sm hover:bg-blue-700 transition-colors text-sm">Export CSV</button>
+              <div className="flex items-center gap-2 md:gap-4">
+                  <button onClick={(e) => {e.stopPropagation(); window.print()}} className="px-3 py-2 md:px-4 bg-slate-600 text-white font-semibold rounded-lg shadow-sm hover:bg-slate-700 transition-colors text-xs md:text-sm">Print</button>
+                  <button onClick={(e) => {e.stopPropagation(); handleExport()}} className="px-3 py-2 md:px-4 bg-blue-600 text-white font-semibold rounded-lg shadow-sm hover:bg-blue-700 transition-colors text-xs md:text-sm">Export CSV</button>
                   <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 text-slate-400 dark:text-slate-500 transform transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </div>
           </div>
           {isExpanded && (
               <div id="summary-section-printable-content" className="p-4 md:p-6 border-t border-slate-200 dark:border-slate-700/50">
-                  <div className={`grid grid-cols-1 ${hasChartData ? 'xl:grid-cols-3' : ''} gap-8`}>
-                      <div className="xl:col-span-2">
+                  <div className={`grid grid-cols-1 ${hasChartData ? 'lg:grid-cols-3' : ''} gap-8`}>
+                      <div className="lg:col-span-2">
                           <h3 className="font-bold text-lg text-slate-700 dark:text-slate-200 mb-4">
                             {act === 'companies' ? 'Asset Type Summary Schedule' : 'Asset Block Summary (Income Tax)'}
                           </h3>
-                          <div className="overflow-x-auto">
+                          
+                          {/* --- MOBILE VIEW --- */}
+                          <div className="md:hidden space-y-4">
+                              {Object.values(summaryData.byType).map(typeData => (
+                                  <div key={`mobile-${typeData.name}`} className={`p-4 rounded-lg border border-slate-200 dark:border-slate-700 ${filterType && filterType === typeData.internalName ? 'bg-indigo-100/50 dark:bg-indigo-900/30' : 'bg-slate-50/50 dark:bg-slate-800/20'}`}>
+                                      <h4 className="font-bold text-slate-800 dark:text-slate-100 mb-2">{typeData.name}</h4>
+                                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                                          {act === 'companies' ? (
+                                              <>
+                                                <div><span className="text-slate-500">Dep. for Year:</span><br/><strong className="text-blue-600 dark:text-blue-400">{formatCurrency(typeData.depreciationForYear)}</strong></div>
+                                                <div><span className="text-slate-500">Closing WDV:</span><br/><strong className="text-green-700 dark:text-green-500">{formatCurrency(typeData.closingNetBlock)}</strong></div>
+                                                <div><span className="text-slate-500">Op. Gross Block:</span><br/>{formatCurrency(typeData.openingGrossBlock)}</div>
+                                                <div><span className="text-slate-500">Additions:</span><br/>{formatCurrency(typeData.additions)}</div>
+                                              </>
+                                          ) : (
+                                              <>
+                                                <div><span className="text-slate-500">Dep. for Year:</span><br/><strong className="text-blue-600 dark:text-blue-400">{formatCurrency(typeData.depreciationForYear)}</strong></div>
+                                                <div><span className="text-slate-500">Closing WDV:</span><br/><strong className="text-green-700 dark:text-green-500">{formatCurrency(typeData.closingNetBlock)}</strong></div>
+                                                <div><span className="text-slate-500">Opening WDV:</span><br/>{formatCurrency(typeData.openingWDV)}</div>
+                                                <div><span className="text-slate-500">Additions:</span><br/>{formatCurrency(typeData.additions)}</div>
+                                              </>
+                                          )}
+                                      </div>
+                                  </div>
+                              ))}
+                          </div>
+
+                          {/* --- DESKTOP VIEW --- */}
+                          <div className="hidden md:block overflow-x-auto">
                             {act === 'companies' ? (
                                 <table className="w-full text-left text-xs">
                                     <thead className="bg-slate-200/50 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300 uppercase">
