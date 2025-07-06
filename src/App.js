@@ -19,6 +19,8 @@ import { SkeletonSummary } from './components/SkeletonLoader';
 import IncomeTaxView from './components/IncomeTaxView';
 import CompaniesActView from './components/CompaniesActView';
 import DeferredTaxCalculator from './components/DeferredTaxCalculator';
+import PrintDeferredTax from './components/PrintDeferredTax'; // Import the new component
+
 // PapaParse is loaded via a script tag in the App component to avoid import errors.
 
 
@@ -495,14 +497,27 @@ export default function App() {
                         }
                     `}</style>
                     
+                    {/* --- THIS IS THE UPDATED PRINTING LOGIC --- */}
                     <div className="print-only">
-                        <PrintLayout
-                            calculationResults={act === 'companies' ? companiesActCalculationResults : incomeTaxCalculationResults}
-                            method={method}
-                            FY_LABEL={FY_LABEL}
-                            summaryData={act === 'companies' ? companiesActSummary : incomeTaxSummary}
-                            act={act}
-                        />
+                        {act === 'deferred_tax' ? (
+                            <PrintDeferredTax
+                                companiesActDepreciation={companiesActSummary.totals.depreciationForYear}
+                                incomeTaxDepreciation={incomeTaxSummary.totals.depreciationForYear}
+                                openingCompaniesActWdv={companiesActSummary.totals.openingNetBlock}
+                                openingIncomeTaxWdv={incomeTaxSummary.totals.openingWDV}
+                                taxRate={deferredTaxRate}
+                                accountingProfit={accountingProfit}
+                                FY_LABEL={FY_LABEL}
+                            />
+                        ) : (
+                            <PrintLayout
+                                calculationResults={act === 'companies' ? companiesActCalculationResults : incomeTaxCalculationResults}
+                                method={method}
+                                FY_LABEL={FY_LABEL}
+                                summaryData={act === 'companies' ? companiesActSummary : incomeTaxSummary}
+                                act={act}
+                            />
+                        )}
                     </div>
 
                     <div className="no-print bg-gradient-to-br from-slate-50 to-slate-200 dark:from-slate-900 dark:to-slate-950 min-h-screen text-slate-800 font-sans transition-colors duration-500">

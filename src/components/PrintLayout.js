@@ -1,6 +1,7 @@
 import React from 'react';
 import PrintSummaryTable from './PrintSummaryTable';
 import PrintAssetDetail from './PrintAssetDetail';
+import PrintBlockDetail from './PrintBlockDetail'; // Import the new component
 
 const PrintLayout = ({ calculationResults, method, FY_LABEL, summaryData, act }) => (
     <div className="print-container">
@@ -11,18 +12,32 @@ const PrintLayout = ({ calculationResults, method, FY_LABEL, summaryData, act })
         <section>
             <PrintSummaryTable summaryData={summaryData} act={act} />
         </section>
-        {act === 'companies' && calculationResults.length > 0 && (
+
+        {/* This logic now handles both Companies Act and Income Tax Act details */}
+        {calculationResults.length > 0 && (
            <section>
-                <h2 className="print-section-title">Asset Details</h2>
-                {calculationResults.map(result => (
-                    <PrintAssetDetail
-                        key={`print-${result.id}`}
-                        asset={result.asset}
-                        details={result.details}
-                        method={method}
-                        act={act}
-                    />
-                ))}
+                <h2 className="print-section-title">
+                    {act === 'companies' ? 'Asset Details' : 'Block Details'}
+                </h2>
+                {act === 'companies' ? (
+                    calculationResults.map(result => (
+                        <PrintAssetDetail
+                            key={`print-asset-${result.id}`}
+                            asset={result.asset}
+                            details={result.details}
+                            method={method}
+                            act={act}
+                        />
+                    ))
+                ) : (
+                    calculationResults.map(result => (
+                        <PrintBlockDetail
+                            key={`print-block-${result.id}`}
+                            block={result.block}
+                            details={result.details}
+                        />
+                    ))
+                )}
            </section>
         )}
     </div>
