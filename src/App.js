@@ -197,7 +197,6 @@ export default function App() {
     }, []);
 
     const updateBlock = useCallback((id, updatedData) => {
-        // THIS IS THE CORRECTED LINE
         setAssetBlocks(prev => prev.map(block => (block.id === id ? updatedData : block)));
     }, []);
 
@@ -435,7 +434,7 @@ export default function App() {
     }, [filteredItems, allVisibleBlocksSelected]);
 
     return (
-        <div className={theme}>
+        <div className={`${theme} transition-colors duration-500`}>
             <HelpModal isOpen={isHelpModalOpen} onClose={() => setIsHelpModalOpen(false)} topic={helpTopic} />
             
             {isLoading ? (
@@ -481,7 +480,7 @@ export default function App() {
                         />
                     </div>
 
-                    <div className="no-print bg-gradient-to-br from-slate-50 to-slate-200 dark:from-slate-900 dark:to-slate-950 min-h-screen text-slate-800 font-sans">
+                    <div className="no-print bg-gradient-to-br from-slate-50 to-slate-200 dark:from-slate-900 dark:to-slate-950 min-h-screen text-slate-800 font-sans transition-colors duration-500">
                         <div className="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
                             <Toast
                                 message={toast.message}

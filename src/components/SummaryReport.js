@@ -1,10 +1,18 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { PieChart, Pie, Cell, Tooltip as ChartTooltip, ResponsiveContainer, Legend } from 'recharts';
 import { formatCurrency } from '../utils/helpers';
 import { FY_LABEL } from '../config';
 
 const SummaryReport = ({ summaryData, onFilterChange, showToast, filterType, theme, act, setAct }) => {
     const [isExpanded, setIsExpanded] = useState(true);
+    const [isShowing, setIsShowing] = useState(false);
+
+    useEffect(() => {
+        // This effect triggers the animation when the component mounts
+        const timer = setTimeout(() => setIsShowing(true), 100); // A small delay ensures a smooth start
+        return () => clearTimeout(timer);
+    }, []);
+
 
     const chartData = useMemo(() => {
         const colors = ['#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#f43f5e', '#64748b', '#d946ef', '#22c55e', '#f97316', '#84cc16'];
@@ -73,7 +81,7 @@ const SummaryReport = ({ summaryData, onFilterChange, showToast, filterType, the
     };
 
     return (
-      <div className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg border border-white/30 dark:border-slate-700/50 rounded-2xl shadow-lg overflow-hidden mb-8">
+      <div className={`bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg border border-white/30 dark:border-slate-700/50 rounded-2xl shadow-lg overflow-hidden mb-8 transition-all duration-700 ease-in-out transform ${isShowing ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <div className="p-4 md:p-6 cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-800/50 flex justify-between items-center" onClick={() => setIsExpanded(!isExpanded)}>
               <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Summary & Reporting</h2>
               <div className="flex items-center gap-4">
