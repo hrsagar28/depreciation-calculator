@@ -1,6 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const HelpModal = ({ isOpen, onClose, topic }) => {
+    const [isShowing, setIsShowing] = useState(false);
+
     const helpContent = {
         introduction: {
             title: "Welcome to the Depreciation Calculator!",
@@ -89,26 +91,52 @@ const HelpModal = ({ isOpen, onClose, topic }) => {
             )
         }
     };
-
+    
     const activeContent = helpContent[topic] || helpContent.introduction;
+
+    useEffect(() => {
+        // This effect triggers the animation when the modal is opened
+        if (isOpen) {
+            // A tiny delay ensures the component is in the DOM before the animation classes are applied
+            const timer = setTimeout(() => setIsShowing(true), 10);
+            return () => clearTimeout(timer);
+        } else {
+            setIsShowing(false);
+        }
+    }, [isOpen]);
 
     useEffect(() => {
         if (!isOpen) return;
         const handleEsc = (event) => {
-            if (event.keyCode === 27) onClose();
+            if (event.keyCode === 27) handleClose();
         };
         window.addEventListener('keydown', handleEsc);
         return () => window.removeEventListener('keydown', handleEsc);
     }, [isOpen, onClose]);
 
+    const handleClose = () => {
+        setIsShowing(false);
+        // Wait for the exit animation to finish before calling the parent's onClose function
+        setTimeout(() => {
+            onClose();
+        }, 300); // This duration should match the transition duration
+    };
+
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-center items-center p-4" onClick={onClose}>
-            <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl m-4" onClick={e => e.stopPropagation()}>
+        <div 
+            className={`fixed inset-0 z-50 flex justify-center items-center p-4 transition-opacity duration-300 ease-in-out ${isShowing ? 'opacity-100' : 'opacity-0'}`} 
+            onClick={handleClose}
+        >
+            <div className={`absolute inset-0 bg-black/60 backdrop-blur-sm`}></div>
+            <div 
+                className={`relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl m-4 transition-all duration-300 ease-in-out ${isShowing ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`} 
+                onClick={e => e.stopPropagation()}
+            >
                 <header className="p-5 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
                     <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">{activeContent.title}</h2>
-                     <button onClick={onClose} className="p-2 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" aria-label="Close help">
+                     <button onClick={handleClose} className="p-2 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" aria-label="Close help">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                  </header>
@@ -116,7 +144,7 @@ const HelpModal = ({ isOpen, onClose, topic }) => {
                     {activeContent.content}
                 </div>
                  <footer className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-b-2xl text-center">
-                     <button onClick={() => onClose()} className="px-6 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors">Got it!</button>
+                     <button onClick={handleClose} className="px-6 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors">Got it!</button>
                  </footer>
             </div>
         </div>

@@ -1,7 +1,7 @@
 import React from 'react';
 import EmptyState from './EmptyState';
 import AssetCard from './AssetCard';
-import AssetDetailPanel from './AssetDetailPanel'; // Import the panel
+import AssetDetailPanel from './AssetDetailPanel';
 
 const CompaniesActView = ({
   handleMethodChange,
@@ -20,7 +20,6 @@ const CompaniesActView = ({
   filterType,
   setFilterType,
   isLoading,
-  // Add these new props
   selectedAssetData,
   updateAsset
 }) => {
@@ -54,10 +53,22 @@ const CompaniesActView = ({
                     )}
                </div>
             </div>
-            {assets.length === 0 ? <EmptyState addAsset={addAsset} act={'companies'} /> : <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{filteredItems.map((result) => <AssetCard key={result.id} asset={result.asset} details={result.details} onSelect={handleSelectAsset} onEdit={() => setSelectedAssetId(result.id)} />)}</div>}
+            
+            {/* --- THIS IS THE UPDATED LOGIC BLOCK --- */}
+            {assets.length > 0 && filteredItems.length === 0 ? (
+                <div className="text-center p-8 text-slate-500 dark:text-slate-400">
+                    No search results found for "{searchTerm}".
+                </div>
+            ) : assets.length === 0 ? (
+                <EmptyState addAsset={addAsset} act={'companies'} />
+            ) : (
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredItems.map((result) => <AssetCard key={result.id} asset={result.asset} details={result.details} onSelect={handleSelectAsset} onEdit={() => setSelectedAssetId(result.id)} />)}
+                </div>
+            )}
+            
             {!isLoading && <button onClick={addAsset} className="fixed bottom-6 right-6 md:bottom-8 md:right-8 h-16 w-16 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center justify-center" title="Add New Asset" aria-label="Add new asset"><svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg></button>}
         </main>
-        {/* ADD THIS BACK IN */}
         {selectedAssetData && <AssetDetailPanel key={selectedAssetData.id} asset={selectedAssetData.asset} details={selectedAssetData.details} updateAsset={updateAsset} method={method} act={'companies'} onClose={() => setSelectedAssetId(null)} />}
     </>
   );

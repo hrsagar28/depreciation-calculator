@@ -5,7 +5,8 @@ const BlockCard = React.memo(({ block, details, onSelect, onEdit }) => {
     return (
         <div
             onClick={onEdit}
-            className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg border border-white/30 dark:border-slate-700/50 rounded-2xl shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 cursor-pointer"
+            // ADDED/MODIFIED classes for animation:
+            className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg border border-white/30 dark:border-slate-700/50 rounded-2xl shadow-lg hover:shadow-xl hover:scale-[1.03] active:scale-[1.01] transition-all duration-300 ease-in-out transform"
         >
             <div className="p-5 sm:p-4">
                 <div className="flex justify-between items-start gap-4">

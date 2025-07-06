@@ -43,7 +43,6 @@ const BlockDetailPanel = ({ block, details, updateBlock, onClose }) => {
         if (name === 'blockType') {
             const blockDetails = INCOME_TAX_BLOCKS[sanitizedValue];
             if (blockDetails) {
-                updatedBlock.name = blockDetails.name;
                 updatedBlock.rate = blockDetails.rate;
             }
             if (EXCLUDED_BLOCK_TYPES_FOR_ADDITIONAL_DEP.includes(sanitizedValue)) {

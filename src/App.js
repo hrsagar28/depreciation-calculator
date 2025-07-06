@@ -197,7 +197,7 @@ export default function App() {
     }, []);
 
     const updateBlock = useCallback((id, updatedData) => {
-        setAssetBlocks(prev => prev.map(block => (block.id === id ? updatedData : block)));
+        setAssetBlocks(prev => prev.map(block => (block.id === id ? updatedData : asset)));
     }, []);
 
     const handleSelectAsset = useCallback((id, isSelected) => {
@@ -446,7 +446,32 @@ export default function App() {
             ) : (
                 <>
                     <PrintStyles />
-                    
+
+<style>{`
+    @keyframes fade-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    .animate-fade-in {
+        animation: fade-in 0.5s ease-in-out;
+    }
+    /* --- NEW ANIMATION --- */
+    @keyframes fade-in-slide-up {
+        from { 
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to { 
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    .animate-new-item {
+        animation: fade-in-slide-up 0.5s ease-out;
+    }
+`}</style>
+                   
+ 
                     <div className="print-only">
                         <PrintLayout
                             calculationResults={act === 'companies' ? companiesActCalculationResults : incomeTaxCalculationResults}
@@ -476,76 +501,77 @@ export default function App() {
                             </ConfirmationModal>
 
                             <header className="mb-8 relative flex flex-col sm:flex-row sm:items-center sm:justify-between">
-    <div className="text-center sm:text-left">
-        <h1 className="text-4xl md:text-5xl font-bold text-slate-800 dark:text-slate-100">
-            {act === 'deferred_tax' ? 'Deferred Tax Analysis' : 'Depreciation Calculator'}
-        </h1>
-        <p className="text-lg text-slate-600 dark:text-slate-400 mt-2">
-            {act === 'companies' ? 'As per Companies Act, 2013' : act === 'income_tax' ? 'As per Income Tax Act, 1961' : `For FY ${FY_LABEL}`}
-        </p>
-    </div>
-    <div className="mt-4 sm:mt-0 flex justify-center sm:justify-end gap-2">
-        <button onClick={() => setAct(null)} className="px-4 py-2 bg-gray-600 text-white font-semibold rounded-lg shadow-sm hover:bg-gray-700 transition-colors text-sm">Change Tool</button>
-        <button onClick={() => openHelpModal(act === 'companies' ? 'companiesAct' : act === 'income_tax' ? 'incomeTaxAct' : 'deferredTax')} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-sm hover:bg-blue-700 transition-colors text-sm">Help</button>
-        <button onClick={toggleTheme} className="px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold rounded-lg shadow-sm hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors text-sm">
-            {theme === 'light' ? 'Dark' : 'Light'}
-        </button>
-    </div>
-</header>
+                                <div className="text-center sm:text-left">
+                                    <h1 className="text-4xl md:text-5xl font-bold text-slate-800 dark:text-slate-100">
+                                        {act === 'deferred_tax' ? 'Deferred Tax Analysis' : 'Depreciation Calculator'}
+                                    </h1>
+                                    <p className="text-lg text-slate-600 dark:text-slate-400 mt-2">
+                                        {act === 'companies' ? 'As per Companies Act, 2013' : act === 'income_tax' ? 'As per Income Tax Act, 1961' : `For FY ${FY_LABEL}`}
+                                    </p>
+                                </div>
+                                <div className="mt-4 sm:mt-0 flex justify-center sm:justify-end gap-2">
+                                    <button onClick={() => setAct(null)} className="px-4 py-2 bg-gray-600 text-white font-semibold rounded-lg shadow-sm hover:bg-gray-700 transition-colors text-sm">Change Tool</button>
+                                    <button onClick={() => openHelpModal(act === 'companies' ? 'companiesAct' : act === 'income_tax' ? 'incomeTaxAct' : 'deferredTax')} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-sm hover:bg-blue-700 transition-colors text-sm">Help</button>
+                                    <button onClick={toggleTheme} className="px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold rounded-lg shadow-sm hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors text-sm">
+                                        {theme === 'light' ? 'Dark' : 'Light'}
+                                    </button>
+                                </div>
+                            </header>
 
                             {act !== 'deferred_tax' && (isLoading ? <SkeletonSummary /> : <SummaryReport summaryData={act === 'companies' ? companiesActSummary : incomeTaxSummary} onFilterChange={setFilterType} showToast={showToast} filterType={filterType} theme={theme} act={act} setAct={handleSelectAct} />)}
                             
-
-{act === 'companies' ? (
-    <CompaniesActView
-      handleMethodChange={handleMethodChange}
-      method={method}
-      assets={assets}
-      addAsset={addAsset}
-      filteredItems={filteredItems}
-      handleSelectAsset={handleSelectAsset}
-      setSelectedAssetId={setSelectedAssetId}
-      selectedAssetCount={selectedAssetCount}
-      allVisibleAssetsSelected={allVisibleAssetsSelected}
-      handleSelectAllAssets={handleSelectAllAssets}
-      handleDeleteAssetRequest={handleDeleteAssetRequest}
-      searchTerm={searchTerm}
-      setSearchTerm={setSearchTerm}
-      filterType={filterType}
-      setFilterType={setFilterType}
-      isLoading={isLoading}
-      selectedAssetData={selectedAssetData}
-      updateAsset={updateAsset}
-    />
-  ) : act === 'income_tax' ? (
-    <IncomeTaxView
-      assetBlocks={assetBlocks}
-      addBlock={addBlock}
-      filteredItems={filteredItems}
-      handleSelectBlock={handleSelectBlock}
-      setSelectedBlockId={setSelectedBlockId}
-      selectedBlockCount={selectedBlockCount}
-      allVisibleBlocksSelected={allVisibleBlocksSelected}
-      handleSelectAllBlocks={handleSelectAllBlocks}
-      handleDeleteBlockRequest={handleDeleteBlockRequest}
-      blockSearchTerm={blockSearchTerm}
-      setBlockSearchTerm={setBlockSearchTerm}
-      filterType={filterType}
-      setFilterType={setFilterType}
-      isLoading={isLoading}
-      selectedBlockData={selectedBlockData}
-      updateBlock={updateBlock}
-    />
-  ) : (
-    // This is the new part that will render our calculator
-<DeferredTaxCalculator
-  companiesActDepreciation={companiesActSummary.totals.depreciationForYear}
-  incomeTaxDepreciation={incomeTaxSummary.totals.depreciationForYear}
-  openingCompaniesActWdv={companiesActSummary.totals.openingNetBlock}
-  openingIncomeTaxWdv={incomeTaxSummary.totals.openingWDV}
-  setAct={setAct}
-/>
-  )}
+                            {/* --- THIS IS THE WRAPPER DIV FOR THE PAGE CONTENT ANIMATION --- */}
+                            <div key={act} className="animate-fade-in">
+                                {act === 'companies' ? (
+                                    <CompaniesActView
+                                      handleMethodChange={handleMethodChange}
+                                      method={method}
+                                      assets={assets}
+                                      addAsset={addAsset}
+                                      filteredItems={filteredItems}
+                                      handleSelectAsset={handleSelectAsset}
+                                      setSelectedAssetId={setSelectedAssetId}
+                                      selectedAssetCount={selectedAssetCount}
+                                      allVisibleAssetsSelected={allVisibleAssetsSelected}
+                                      handleSelectAllAssets={handleSelectAllAssets}
+                                      handleDeleteAssetRequest={handleDeleteAssetRequest}
+                                      searchTerm={searchTerm}
+                                      setSearchTerm={setSearchTerm}
+                                      filterType={filterType}
+                                      setFilterType={setFilterType}
+                                      isLoading={isLoading}
+                                      selectedAssetData={selectedAssetData}
+                                      updateAsset={updateAsset}
+                                    />
+                                  ) : act === 'income_tax' ? (
+                                    <IncomeTaxView
+                                      assetBlocks={assetBlocks}
+                                      addBlock={addBlock}
+                                      filteredItems={filteredItems}
+                                      handleSelectBlock={handleSelectBlock}
+                                      setSelectedBlockId={setSelectedBlockId}
+                                      selectedBlockCount={selectedBlockCount}
+                                      allVisibleBlocksSelected={allVisibleBlocksSelected}
+                                      handleSelectAllBlocks={handleSelectAllBlocks}
+                                      handleDeleteBlockRequest={handleDeleteBlockRequest}
+                                      blockSearchTerm={blockSearchTerm}
+                                      setBlockSearchTerm={setBlockSearchTerm}
+                                      filterType={filterType}
+                                      setFilterType={setFilterType}
+                                      isLoading={isLoading}
+                                      selectedBlockData={selectedBlockData}
+                                      updateBlock={updateBlock}
+                                    />
+                                  ) : (
+                                    <DeferredTaxCalculator
+                                      companiesActDepreciation={companiesActSummary.totals.depreciationForYear}
+                                      incomeTaxDepreciation={incomeTaxSummary.totals.depreciationForYear}
+                                      openingCompaniesActWdv={companiesActSummary.totals.openingNetBlock}
+                                      openingIncomeTaxWdv={incomeTaxSummary.totals.openingWDV}
+                                      setAct={setAct}
+                                    />
+                                  )}
+                            </div>
                         </div>
                     </div>
                 </>

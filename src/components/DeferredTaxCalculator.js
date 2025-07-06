@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { formatCurrency } from '../utils/helpers';
 
-const InfoCard = ({ title, children, className = '' }) => (
-    <div className={`bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border border-white/30 dark:border-slate-700/50 rounded-2xl shadow-lg overflow-hidden ${className}`}>
+const InfoCard = ({ title, children, className = '', delay = 0 }) => (
+    <div className={`bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border border-white/30 dark:border-slate-700/50 rounded-2xl shadow-lg overflow-hidden animate-fade-in-up ${className}`} style={{ animationDelay: `${delay}ms` }}>
         <header className="p-4 bg-slate-50/50 dark:bg-slate-800/30 border-b border-slate-200 dark:border-slate-700">
             <h3 className="font-bold text-lg text-slate-800 dark:text-slate-200">{title}</h3>
         </header>
@@ -25,38 +25,23 @@ const DeferredTaxCalculator = ({
 
     // --- FINAL, FULLY VERIFIED DEFERRED TAX LOGIC ---
     const parsedAccountingProfit = parseFloat(accountingProfit) || 0;
-
-    // A "Deductible Temporary Difference" creates a Deferred Tax Asset (DTA). This happens when Tax WDV > Book WDV.
-    // A "Taxable Temporary Difference" creates a Deferred Tax Liability (DTL). This happens when Book WDV > Tax WDV.
-    // Let's calculate the difference as (Tax Base - Accounting Base). A positive result is a DTA.
-
     const openingTimingDifference = (openingIncomeTaxWdv || 0) - (openingCompaniesActWdv || 0);
     const openingDeferredTax = openingTimingDifference * (taxRate / 100);
-
-    // CORRECTED: The movement is based on the difference in depreciation for the year.
     const movementTimingDifference = (companiesActDepreciation || 0) - (incomeTaxDepreciation || 0);
     const movementDeferredTax = movementTimingDifference * (taxRate / 100);
-
     const closingDeferredTax = openingDeferredTax + movementDeferredTax;
-
-    // A positive deferred tax balance now represents a DTA.
     const isClosingAsset = closingDeferredTax >= 0;
     const resultType = isClosingAsset ? 'Asset' : 'Liability';
     const resultColorClass = isClosingAsset ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500';
 
-    // --- JOURNAL ENTRY LOGIC (based on the movement) ---
     const journalEntry = {
         title: `Journal Entry for Movement in Deferred Tax`,
-        // If movement is positive, DTA increases -> Debit DTA
         debit: movementDeferredTax >= 0 ? 'Deferred Tax Asset (B/S)' : 'Deferred Tax Expense (P&L)',
-        // If movement is positive, DTA increases -> Credit P&L (as income)
         credit: movementDeferredTax >= 0 ? 'Deferred Tax Expense (P&L)' : 'Deferred Tax Liability (B/S)',
         amount: Math.abs(movementDeferredTax),
         narration: `Being the movement in deferred tax for the year recognized on timing differences in depreciation.`
     };
     
-    // --- DISCLOSURE CALCULATIONS ---
-    // CORRECTED: Taxable profit is Accounting Profit adjusted for the timing difference.
     const taxableProfit = parsedAccountingProfit - movementTimingDifference;
     const currentTax = taxableProfit * (taxRate / 100);
     const totalTaxExpense = currentTax + movementDeferredTax;
@@ -65,7 +50,7 @@ const DeferredTaxCalculator = ({
         <div className="w-full max-w-5xl mx-auto">
             <div className="space-y-8">
                 {/* Section 1: Inputs and Summary */}
-                <InfoCard title="1. Calculation Inputs & Summary">
+                <InfoCard title="1. Calculation Inputs & Summary" delay={100}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         {/* Input Fields */}
                         <div className="space-y-4">
@@ -111,7 +96,7 @@ const DeferredTaxCalculator = ({
                 </InfoCard>
 
                 {/* Section 2: Journal Entry */}
-                <InfoCard title="2. Journal Entry (for Movement during the year)">
+                <InfoCard title="2. Journal Entry (for Movement during the year)" delay={200}>
                     <table className="w-full text-left">
                         <thead>
                             <tr className="border-b border-slate-300 dark:border-slate-600">
@@ -137,7 +122,7 @@ const DeferredTaxCalculator = ({
                 </InfoCard>
 
                 {/* Section 3: Financial Statement Disclosures */}
-                <InfoCard title="3. Notes to Accounts & Disclosures">
+                <InfoCard title="3. Notes to Accounts & Disclosures" delay={300}>
                     <div className="space-y-6">
                         <div>
                             <h4 className="font-bold text-slate-800 dark:text-slate-100 mb-2">A. Deferred Tax {resultType} (Balance Sheet Note)</h4>
