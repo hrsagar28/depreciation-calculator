@@ -16,10 +16,22 @@ const getDaysInFY = (date) => {
 
 export const isValidDate = (dateString) => {
     const date = new Date(dateString);
-    const today = new Date();
-    today.setHours(0,0,0,0);
+    // Use the financial year end date as the latest possible date
+    const latestDate = new Date(FY_END_DATE);
     const earliestDate = new Date('1900-01-01');
-    return date instanceof Date && !isNaN(date) && date <= today && date >= earliestDate;
+    
+    // Check if the date object is valid, and if the manually typed date matches the parsed date
+    // This catches invalid dates like "2025-06-31" which JS might parse to July 1st.
+    const dateParts = dateString.split('-');
+    const year = parseInt(dateParts[0], 10);
+    const month = parseInt(dateParts[1], 10) - 1; // JS months are 0-indexed
+    const day = parseInt(dateParts[2], 10);
+
+    if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day) {
+        return false; // Invalid date like Feb 30th
+    }
+
+    return date instanceof Date && !isNaN(date) && date <= latestDate && date >= earliestDate;
 };
 
 export const getDaysUsed = (purchaseDateStr, disposalDateStr = null) => {

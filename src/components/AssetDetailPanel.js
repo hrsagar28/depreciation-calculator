@@ -13,10 +13,11 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, act, onClose })
     const isInvalidResidual = (parseFloat(financialData.residualValue) || 0) > (parseFloat(financialData.openingGrossBlock) || 0);
     const isGrossBlockEmpty = financialData.openingGrossBlock === '' && asset.additions.length === 0;
     const isAccumDepEmpty = financialData.openingAccumulatedDepreciation === '' && financialData.openingGrossBlock !== '';
+    
+    // Updated validation flags
     const isPurchaseDateInvalid = asset.purchaseDate && !isValidDate(asset.purchaseDate);
     const isAdditionDateInvalid = newAddition.date && !isValidDate(newAddition.date);
-    const isResidualValueEmptyForSLM = method === 'SLM' && financialData.residualValue === '';
-    const isDisposalDateInvalid = asset.disposalDate && asset.purchaseDate && new Date(asset.disposalDate) < new Date(asset.purchaseDate);
+    const isDisposalDateInvalid = (asset.disposalDate && !isValidDate(asset.disposalDate)) || (asset.disposalDate && asset.purchaseDate && new Date(asset.disposalDate) < new Date(asset.purchaseDate));
 
     const canHaveSaleValue = (parseFloat(financialData.openingGrossBlock) || 0) > 0 || asset.additions.length > 0;
 
@@ -143,7 +144,7 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, act, onClose })
                                  );
                              })}
                             <div className="flex flex-col sm:flex-row items-center gap-2 mt-3">
-                                <input type="date" aria-label="New addition date" value={newAddition.date} onChange={(e) => setNewAddition(p => ({...p, date: e.target.value}))} className={`${inputFieldClass} flex-1`} min={FY_START_DATE} max={asset.disposalDate || FY_END_DATE}/>
+                                <input type="date" aria-label="New addition date" value={newAddition.date} onChange={(e) => setNewAddition(p => ({...p, date: e.target.value}))} className={`${inputFieldClass} flex-1 ${isAdditionDateInvalid ? 'border-red-500 ring-1 ring-red-500' : ''}`} min={FY_START_DATE} max={asset.disposalDate || FY_END_DATE}/>
                                 <input type="number" aria-label="New addition cost" value={newAddition.cost} onChange={(e) => setNewAddition(p => ({...p, cost: e.target.value}))} placeholder="Cost of Addition (₹)" className={`${inputFieldClass} flex-1`}/>
                                 {method === 'SLM' && (
                                    <Tooltip text="Optional: Residual value for this specific addition. Defaults to 0 if empty." id={`tooltip-add-rv-${asset.id}`}>
@@ -159,7 +160,7 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, act, onClose })
                                 )}
                                 <button onClick={handleAddAddition} disabled={!newAddition.date || !newAddition.cost || isAdditionDateInvalid} className="w-full sm:w-auto px-4 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition-colors flex-shrink-0 text-base shadow-md disabled:bg-indigo-400 disabled:cursor-not-allowed">Add</button>
                             </div>
-                            {isAdditionDateInvalid && <p className="text-xs text-red-600 mt-1">Addition date is invalid.</p>}
+                            {isAdditionDateInvalid && <p className="text-xs text-red-600 mt-1">Addition date is invalid or outside the financial year.</p>}
                         </div>
 
                         <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
@@ -178,7 +179,7 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, act, onClose })
                                 <div>
                                     <label htmlFor={`disposalDate-${asset.id}`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Disposal Date</label>
                                     <input id={`disposalDate-${asset.id}`} type="date" name="disposalDate" value={asset.disposalDate} onChange={handleInputChange} className={`${inputFieldClass} ${isDisposalDateInvalid ? 'border-red-500 ring-1 ring-red-500' : ''}`} min={FY_START_DATE} max={FY_END_DATE} />
-                                    {isDisposalDateInvalid && <p className="text-xs text-red-600 mt-1">Disposal date cannot be before purchase date.</p>}
+                                    {isDisposalDateInvalid && <p className="text-xs text-red-600 mt-1">Disposal date cannot be before purchase date or outside the financial year.</p>}
                                 </div>
                                 <div>
                                     <label htmlFor={`saleValue-${asset.id}`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
