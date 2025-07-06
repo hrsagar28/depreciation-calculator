@@ -14,12 +14,12 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, act, onClose })
     const isGrossBlockEmpty = financialData.openingGrossBlock === '' && asset.additions.length === 0;
     const isAccumDepEmpty = financialData.openingAccumulatedDepreciation === '' && financialData.openingGrossBlock !== '';
     
-    // THIS IS THE LINE THAT WAS MISSING
     const isResidualValueEmptyForSLM = method === 'SLM' && financialData.residualValue === '';
 
+    // More robust validation checks
     const isPurchaseDateInvalid = asset.purchaseDate && !isValidDate(asset.purchaseDate);
     const isAdditionDateInvalid = newAddition.date && !isValidDate(newAddition.date);
-    const isDisposalDateInvalid = (asset.disposalDate && !isValidDate(asset.disposalDate)) || (asset.disposalDate && asset.purchaseDate && new Date(asset.disposalDate) < new Date(asset.purchaseDate));
+    const isDisposalDateInvalid = (asset.disposalDate && !isValidDate(asset.disposalDate)) || (asset.disposalDate && asset.purchaseDate && isValidDate(asset.purchaseDate) && new Date(asset.disposalDate) < new Date(asset.purchaseDate));
 
     const canHaveSaleValue = (parseFloat(financialData.openingGrossBlock) || 0) > 0 || asset.additions.length > 0;
 
@@ -174,8 +174,7 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, act, onClose })
                                               <span tabIndex="0">Orig. Purchase Date <span className={`font-bold ${!asset.purchaseDate ? 'text-red-500' : 'text-slate-400'}`}>(?)</span></span>
                                          </Tooltip>
                                     </label>
-                                    <input id={`purchaseDate-${asset.id}`} type="date" name="purchaseDate" value={asset.purchaseDate} onChange={handleInputChange} className={`${inputFieldClass} ${!asset.purchaseDate || isPurchaseDateInvalid ? 'border-red-500 ring-1 ring-red-500' : ''}`} />
-                                    {!asset.purchaseDate && <p className="text-xs text-red-600 mt-1">Purchase date is required.</p>}
+                                    <input id={`purchaseDate-${asset.id}`} type="date" name="purchaseDate" value={asset.purchaseDate} onChange={handleInputChange} className={`${inputFieldClass} ${isPurchaseDateInvalid ? 'border-red-500 ring-1 ring-red-500' : ''}`} />
                                     {isPurchaseDateInvalid && <p className="text-xs text-red-600 mt-1">Purchase date is invalid.</p>}
                                  </div>
                                 <div>

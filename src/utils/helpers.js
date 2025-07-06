@@ -15,24 +15,31 @@ const getDaysInFY = (date) => {
 };
 
 export const isValidDate = (dateString) => {
-    const date = new Date(dateString);
-    // Use the financial year end date as the latest possible date
-    const latestDate = new Date(FY_END_DATE);
-    const earliestDate = new Date('1900-01-01');
-    
-    // Check if the date object is valid, and if the manually typed date matches the parsed date
-    // This catches invalid dates like "2025-06-31" which JS might parse to July 1st.
-    const dateParts = dateString.split('-');
-    const year = parseInt(dateParts[0], 10);
-    const month = parseInt(dateParts[1], 10) - 1; // JS months are 0-indexed
-    const day = parseInt(dateParts[2], 10);
-
-    if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day) {
-        return false; // Invalid date like Feb 30th
+    // Check for YYYY-MM-DD format
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        return false;
     }
 
-    return date instanceof Date && !isNaN(date) && date <= latestDate && date >= earliestDate;
+    const date = new Date(dateString);
+    const latestDate = new Date(FY_END_DATE);
+    const earliestDate = new Date('1900-01-01');
+
+    // Check if the date object is valid at all
+    if (isNaN(date.getTime())) {
+        return false;
+    }
+
+    // The crucial check: does the created date match the input string?
+    // This catches invalid dates like '2025-02-30' which JS parses to March.
+    // The toISOString() method returns a string in YYYY-MM-DDTHH:mm:ss.sssZ format. We slice the date part.
+    if (date.toISOString().slice(0, 10) !== dateString) {
+        return false;
+    }
+
+    // Finally, check if it's within our allowed range.
+    return date <= latestDate && date >= earliestDate;
 };
+
 
 export const getDaysUsed = (purchaseDateStr, disposalDateStr = null) => {
     const currentFYStart = new Date(FY_START_DATE);

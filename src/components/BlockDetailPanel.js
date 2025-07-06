@@ -14,7 +14,7 @@ const BlockDetailPanel = ({ block, details, updateBlock, onClose }) => {
 
     const isBlockTypeEligibleForAdditionalDep = block.blockType && !EXCLUDED_BLOCK_TYPES_FOR_ADDITIONAL_DEP.includes(block.blockType);
     
-    // Validation flag for new addition date
+    // Updated validation flag for new addition date
     const isAdditionDateInvalid = newAddition.date && !isValidDate(newAddition.date);
 
     useEffect(() => {
