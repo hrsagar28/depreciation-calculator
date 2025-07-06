@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { SCHEDULE_II_SLM_USEFUL_LIFE, SCHEDULE_II_WDV_RATES, FY_START_DATE, FY_END_DATE } from '../config';
+import { SCHEDULE_II_SLM_USEFUL_LIFE, SCHEDULE_II_WDV_RATES } from '../config';
 import { formatCurrency, isValidDate } from '../utils/helpers';
 import Tooltip from './Tooltip';
 
-const AssetDetailPanel = ({ asset, details, updateAsset, method, act, onClose }) => {
+const AssetDetailPanel = ({ asset, details, updateAsset, method, act, onClose, fyStartDate, fyEndDate }) => {
     const [newAddition, setNewAddition] = useState({ date: '', cost: '', residualValue: '' });
     const nameInputRef = useRef(null);
     const [isVisible, setIsVisible] = useState(false);
@@ -16,10 +16,10 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, act, onClose })
     
     const isResidualValueEmptyForSLM = method === 'SLM' && financialData.residualValue === '';
 
-    // More robust validation checks
-    const isPurchaseDateInvalid = asset.purchaseDate && !isValidDate(asset.purchaseDate);
-    const isAdditionDateInvalid = newAddition.date && !isValidDate(newAddition.date);
-    const isDisposalDateInvalid = (asset.disposalDate && !isValidDate(asset.disposalDate)) || (asset.disposalDate && asset.purchaseDate && isValidDate(asset.purchaseDate) && new Date(asset.disposalDate) < new Date(asset.purchaseDate));
+    // Corrected validation logic
+    const isPurchaseDateInvalid = asset.purchaseDate && !isValidDate(asset.purchaseDate); // Allows any valid past date
+    const isAdditionDateInvalid = newAddition.date && !isValidDate(newAddition.date, fyEndDate); // Must be within FY
+    const isDisposalDateInvalid = (asset.disposalDate && !isValidDate(asset.disposalDate, fyEndDate)) || (asset.disposalDate && asset.purchaseDate && isValidDate(asset.purchaseDate) && new Date(asset.disposalDate) < new Date(asset.purchaseDate));
 
     const canHaveSaleValue = (parseFloat(financialData.openingGrossBlock) || 0) > 0 || asset.additions.length > 0;
 
@@ -134,7 +134,7 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, act, onClose })
                         <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
                             <h4 className="text-md font-semibold text-slate-800 dark:text-slate-100 mb-3">Additions During The Year</h4>
                              {asset.additions.map((add, index) => {
-                                 const isExistingAdditionInvalid = !isValidDate(add.date);
+                                 const isExistingAdditionInvalid = !isValidDate(add.date, fyEndDate);
                                  const residualText = (method === 'SLM' && (parseFloat(add.residualValue) || 0) > 0) ? ` (Residual: ${formatCurrency(add.residualValue)})` : '';
                                  return (
                                      <div key={index} className={`flex items-center gap-2 mb-2 p-2 rounded-md text-sm ${isExistingAdditionInvalid ? 'bg-red-100 dark:bg-red-900/30' : 'bg-indigo-50 dark:bg-indigo-900/30'}`}>
@@ -146,7 +146,7 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, act, onClose })
                                  );
                              })}
                             <div className="flex flex-col sm:flex-row items-center gap-2 mt-3">
-                                <input type="date" aria-label="New addition date" value={newAddition.date} onChange={(e) => setNewAddition(p => ({...p, date: e.target.value}))} className={`${inputFieldClass} flex-1 ${isAdditionDateInvalid ? 'border-red-500 ring-1 ring-red-500' : ''}`} min={FY_START_DATE} max={asset.disposalDate || FY_END_DATE}/>
+                                <input type="date" aria-label="New addition date" value={newAddition.date} onChange={(e) => setNewAddition(p => ({...p, date: e.target.value}))} className={`${inputFieldClass} flex-1 ${isAdditionDateInvalid ? 'border-red-500 ring-1 ring-red-500' : ''}`} min={fyStartDate} max={asset.disposalDate || fyEndDate}/>
                                 <input type="number" aria-label="New addition cost" value={newAddition.cost} onChange={(e) => setNewAddition(p => ({...p, cost: e.target.value}))} placeholder="Cost of Addition (₹)" className={`${inputFieldClass} flex-1`}/>
                                 {method === 'SLM' && (
                                    <Tooltip text="Optional: Residual value for this specific addition. Defaults to 0 if empty." id={`tooltip-add-rv-${asset.id}`}>
@@ -179,7 +179,7 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, act, onClose })
                                  </div>
                                 <div>
                                     <label htmlFor={`disposalDate-${asset.id}`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Disposal Date</label>
-                                    <input id={`disposalDate-${asset.id}`} type="date" name="disposalDate" value={asset.disposalDate} onChange={handleInputChange} className={`${inputFieldClass} ${isDisposalDateInvalid ? 'border-red-500 ring-1 ring-red-500' : ''}`} min={FY_START_DATE} max={FY_END_DATE} />
+                                    <input id={`disposalDate-${asset.id}`} type="date" name="disposalDate" value={asset.disposalDate} onChange={handleInputChange} className={`${inputFieldClass} ${isDisposalDateInvalid ? 'border-red-500 ring-1 ring-red-500' : ''}`} min={fyStartDate} max={fyEndDate} />
                                     {isDisposalDateInvalid && <p className="text-xs text-red-600 mt-1">Disposal date cannot be before purchase date or outside the financial year.</p>}
                                 </div>
                                 <div>

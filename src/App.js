@@ -4,7 +4,7 @@ import Tooltip from './components/Tooltip';
 import { useDebounce } from './utils/helpers';
 import AssetCard from './components/AssetCard';
 import BlockCard from './components/BlockCard';
-import { FINANCIAL_YEARS, getFinancialYearDates, INCOME_TAX_BLOCKS } from './config';
+import { FY_LABEL, INCOME_TAX_BLOCKS, FINANCIAL_YEARS, getFinancialYearDates } from './config';
 import AssetDetailPanel from './components/AssetDetailPanel';
 import ConfirmationModal from './components/ConfirmationModal';
 import BlockDetailPanel from './components/BlockDetailPanel';
@@ -149,6 +149,55 @@ export default function App() {
         }
     }, [allAssets, allAssetBlocks, debouncedMethod, debouncedTheme, debouncedAct, debouncedDeferredTaxRate, debouncedAccountingProfit, debouncedCurrentFY, isLoading, saveState]);
 
+    const { start: fyStartDate, end: fyEndDate, label: FY_LABEL_CURRENT } = getFinancialYearDates(currentFY);
+    
+    const handleYearChange = (newFY) => {
+        const currentYearIndex = FINANCIAL_YEARS.indexOf(newFY);
+        const prevYearIndex = FINANCIAL_YEARS.indexOf(currentFY);
+        
+        if (currentYearIndex > prevYearIndex) {
+            let assetsToRollover = allAssets;
+            let blocksToRollover = allAssetBlocks;
+            
+            for (let i = prevYearIndex; i < currentYearIndex; i++) {
+                const stepFY = FINANCIAL_YEARS[i];
+                const nextStepFY = FINANCIAL_YEARS[i + 1];
+                const { start: stepFyStart, end: stepFyEnd } = getFinancialYearDates(stepFY);
+                
+                const currentAssets = assetsToRollover[stepFY] || [];
+                const currentBlocks = blocksToRollover[stepFY] || [];
+
+                const nextYearAssets = currentAssets.map(asset => {
+                    const prevYearDetails = calculateCompaniesActDepreciation(asset, method, stepFyStart, stepFyEnd);
+                    if (prevYearDetails.closingGrossBlock <= 0 && prevYearDetails.disposalsCost > 0) return null;
+                    return {
+                        ...asset, additions: [], disposalDate: '', saleValue: '', isNew: false, isSelected: false,
+                        companiesAct: {
+                            openingGrossBlock: prevYearDetails.closingGrossBlock,
+                            openingAccumulatedDepreciation: prevYearDetails.closingAccumulatedDepreciation,
+                            residualValue: asset.companiesAct.residualValue
+                        }
+                    };
+                }).filter(Boolean);
+
+                const nextYearBlocks = currentBlocks.map(block => {
+                    const prevYearDetails = calculateIncomeTaxDepreciation(block, stepFyStart, stepFyEnd);
+                    if (prevYearDetails.closingWDV <= 0 && block.blockCeased) return null;
+                     return {
+                        ...block, openingWDV: prevYearDetails.closingWDV,
+                        additions: [], saleProceeds: '', blockCeased: false, isNew: false, isSelected: false,
+                    };
+                }).filter(Boolean);
+
+                assetsToRollover = { ...assetsToRollover, [nextStepFY]: nextYearAssets };
+                blocksToRollover = { ...blocksToRollover, [nextStepFY]: nextYearBlocks };
+            }
+            setAllAssets(assetsToRollover);
+            setAllAssetBlocks(blocksToRollover);
+        }
+        setCurrentFY(newFY);
+    };
+
     const toggleTheme = () => {
         setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
     };
@@ -162,17 +211,8 @@ export default function App() {
 
     const addAsset = useCallback(() => {
         const newId = `asset-${Date.now()}`;
-        const newAsset = {
-            id: newId, name: '',
-            additions: [],
-            assetType: '', isNew: true, isSelected: false,
-            purchaseDate: '', disposalDate: '', saleValue: '',
-            companiesAct: { openingGrossBlock: '', openingAccumulatedDepreciation: '', residualValue: '' },
-        };
-        setAllAssets(prevAllAssets => ({
-            ...prevAllAssets,
-            [currentFY]: [newAsset, ...(prevAllAssets[currentFY] || [])]
-        }));
+        const newAsset = { id: newId, name: '', additions: [], assetType: '', isNew: true, isSelected: false, purchaseDate: '', disposalDate: '', saleValue: '', companiesAct: { openingGrossBlock: '', openingAccumulatedDepreciation: '', residualValue: '' }, };
+        setAllAssets(prev => ({ ...prev, [currentFY]: [newAsset, ...(prev[currentFY] || [])] }));
         setSelectedAssetId(newId);
         setFilterType(null);
         showToast("Asset added successfully!");
@@ -180,82 +220,48 @@ export default function App() {
 
     const addBlock = useCallback(() => {
         const newId = `block-${Date.now()}`;
-        const newBlock = {
-            id: newId,
-            blockType: '', name: '', rate: 0, openingWDV: '',
-            additions: [], saleProceeds: '', blockCeased: false,
-            eligibleForAdditional: false,
-            additionalDepEligibility: { isNewPlantMachinery: false, isManufacturing: false, isNotExcluded: false },
-            isSelected: false, isNew: true,
-        };
-        setAllAssetBlocks(prevAllBlocks => ({
-            ...prevAllBlocks,
-            [currentFY]: [newBlock, ...(prevAllBlocks[currentFY] || [])]
-        }));
+        const newBlock = { id: newId, blockType: '', name: '', rate: 0, openingWDV: '', additions: [], saleProceeds: '', blockCeased: false, eligibleForAdditional: false, additionalDepEligibility: { isNewPlantMachinery: false, isManufacturing: false, isNotExcluded: false }, isSelected: false, isNew: true, };
+        setAllAssetBlocks(prev => ({ ...prev, [currentFY]: [newBlock, ...(prev[currentFY] || [])] }));
         setSelectedBlockId(newId);
         showToast("New block added. Please select a block type.");
     }, [currentFY, showToast]);
 
     const updateAsset = useCallback((id, updatedData) => {
-        setAllAssets(prevAllAssets => ({
-            ...prevAllAssets,
-            [currentFY]: (prevAllAssets[currentFY] || []).map(asset => asset.id === id ? updatedData : asset)
-        }));
+        setAllAssets(prev => ({ ...prev, [currentFY]: (prev[currentFY] || []).map(asset => asset.id === id ? updatedData : asset) }));
     }, [currentFY]);
 
     const updateBlock = useCallback((id, updatedData) => {
-        setAllAssetBlocks(prevAllBlocks => ({
-            ...prevAllBlocks,
-            [currentFY]: (prevAllBlocks[currentFY] || []).map(block => block.id === id ? updatedData : block)
-        }));
+        setAllAssetBlocks(prev => ({ ...prev, [currentFY]: (prev[currentFY] || []).map(block => block.id === id ? updatedData : block) }));
     }, [currentFY]);
 
     const handleSelectAsset = useCallback((id, isSelected) => {
-        setAllAssets(prevAllAssets => ({
-            ...prevAllAssets,
-            [currentFY]: (prevAllAssets[currentFY] || []).map(asset => asset.id === id ? {...asset, isSelected} : asset)
-        }));
+        setAllAssets(prev => ({ ...prev, [currentFY]: (prev[currentFY] || []).map(asset => asset.id === id ? {...asset, isSelected} : asset) }));
     }, [currentFY]);
 
     const handleSelectBlock = useCallback((id, isSelected) => {
-        setAllAssetBlocks(prevAllBlocks => ({
-            ...prevAllBlocks,
-            [currentFY]: (prevAllBlocks[currentFY] || []).map(block => block.id === id ? {...block, isSelected} : block)
-        }));
+        setAllAssetBlocks(prev => ({ ...prev, [currentFY]: (prev[currentFY] || []).map(block => block.id === id ? {...block, isSelected} : block) }));
     }, [currentFY]);
 
     const handleConfirmAssetDelete = useCallback(() => {
-      const originalAssets = [...(allAssets[currentFY] || [])];
-      const assetsToDelete = originalAssets.filter(a => a.isSelected);
-      const newAssets = originalAssets.filter(asset => !asset.isSelected);
-
-      setAllAssets(prev => ({...prev, [currentFY]: newAssets}));
-      setIsAssetDeleteModalOpen(false);
-      setSelectedAssetId(null);
-
-      const undo = () => {
-          setAllAssets(prev => ({...prev, [currentFY]: originalAssets}));
-          hideToast();
-          showToast("Deletion undone.");
-      };
-      showToast(`${assetsToDelete.length} asset(s) deleted.`, undo);
+        const originalAssets = [...(allAssets[currentFY] || [])];
+        const assetsToDelete = originalAssets.filter(a => a.isSelected);
+        const newAssets = originalAssets.filter(asset => !asset.isSelected);
+        setAllAssets(prev => ({...prev, [currentFY]: newAssets}));
+        setIsAssetDeleteModalOpen(false);
+        setSelectedAssetId(null);
+        const undo = () => { setAllAssets(prev => ({...prev, [currentFY]: originalAssets})); hideToast(); showToast("Deletion undone."); };
+        showToast(`${assetsToDelete.length} asset(s) deleted.`, undo);
     }, [allAssets, currentFY, showToast, hideToast]);
 
     const handleConfirmBlockDelete = useCallback(() => {
-      const originalBlocks = [...(allAssetBlocks[currentFY] || [])];
-      const blocksToDelete = originalBlocks.filter(b => b.isSelected);
-      const newBlocks = originalBlocks.filter(block => !block.isSelected);
-
-      setAllAssetBlocks(prev => ({...prev, [currentFY]: newBlocks}));
-      setIsBlockDeleteModalOpen(false);
-      setSelectedBlockId(null);
-
-      const undo = () => {
-          setAllAssetBlocks(prev => ({...prev, [currentFY]: originalBlocks}));
-          hideToast();
-          showToast("Deletion undone.");
-      };
-      showToast(`${blocksToDelete.length} block(s) deleted.`, undo);
+        const originalBlocks = [...(allAssetBlocks[currentFY] || [])];
+        const blocksToDelete = originalBlocks.filter(b => b.isSelected);
+        const newBlocks = originalBlocks.filter(block => !block.isSelected);
+        setAllAssetBlocks(prev => ({...prev, [currentFY]: newBlocks}));
+        setIsBlockDeleteModalOpen(false);
+        setSelectedBlockId(null);
+        const undo = () => { setAllAssetBlocks(prev => ({...prev, [currentFY]: originalBlocks})); hideToast(); showToast("Deletion undone."); };
+        showToast(`${blocksToDelete.length} block(s) deleted.`, undo);
     }, [allAssetBlocks, currentFY, showToast, hideToast]);
 
     const handleMethodChange = (newMethod) => {
@@ -265,27 +271,11 @@ export default function App() {
         setMethod(newMethod);
     };
 
-    const handleDeleteAssetRequest = () => {
-        if (selectedAssetCount > 0) {
-            setIsAssetDeleteModalOpen(true);
-        }
-    };
-
-    const handleDeleteBlockRequest = () => {
-        if (selectedBlockCount > 0) {
-            setIsBlockDeleteModalOpen(true);
-        }
-    };
+    const handleDeleteAssetRequest = () => { if (selectedAssetCount > 0) setIsAssetDeleteModalOpen(true); };
+    const handleDeleteBlockRequest = () => { if (selectedBlockCount > 0) setIsBlockDeleteModalOpen(true); };
 
     const handleExport = useCallback(() => {
-        const dataToExport = {
-            allAssets,
-            allAssetBlocks,
-            method,
-            deferredTaxRate,
-            accountingProfit,
-            currentFY,
-        };
+        const dataToExport = { allAssets, allAssetBlocks, method, deferredTaxRate, accountingProfit, currentFY };
         const dataStr = JSON.stringify(dataToExport, null, 2);
         const blob = new Blob([dataStr], { type: "application/json" });
         const url = URL.createObjectURL(blob);
@@ -317,7 +307,6 @@ export default function App() {
                         setAccountingProfit(importedData.accountingProfit || '');
                         showToast("Data imported successfully!");
                     } catch (error) {
-                        console.error("Failed to parse imported file:", error);
                         showToast("Error: Invalid or corrupted data file.");
                     }
                 };
@@ -327,42 +316,23 @@ export default function App() {
         input.click();
     }, [showToast]);
     
-    const { start: fyStartDate, end: fyEndDate, label: FY_LABEL } = getFinancialYearDates(currentFY);
-
     const companiesActCalculationResults = useMemo(() => {
-        return assets.map(asset => ({
-            id: asset.id,
-            asset,
-            details: calculateCompaniesActDepreciation(asset, method, fyStartDate, fyEndDate)
-        }));
+        return assets.map(asset => ({ id: asset.id, asset, details: calculateCompaniesActDepreciation(asset, method, fyStartDate, fyEndDate) }));
     }, [assets, method, fyStartDate, fyEndDate]);
     
     const incomeTaxCalculationResults = useMemo(() => {
-        return assetBlocks.map(block => ({
-            id: block.id,
-            block,
-            details: calculateIncomeTaxDepreciation(block, fyStartDate, fyEndDate)
-        }));
+        return assetBlocks.map(block => ({ id: block.id, block, details: calculateIncomeTaxDepreciation(block, fyStartDate, fyEndDate) }));
     }, [assetBlocks, fyStartDate, fyEndDate]);
 
     const companiesActSummary = useMemo(() => {
         const summary = { byType: {}, totals: {} };
-        const initialTypeSummary = {
-            openingGrossBlock: 0, additions: 0, disposalsCost: 0, closingGrossBlock: 0,
-            openingAccumulatedDepreciation: 0, openingNetBlock: 0, depreciationForYear: 0,
-            closingAccumulatedDepreciation: 0, closingNetBlock: 0
-        };
+        const initialTypeSummary = { openingGrossBlock: 0, additions: 0, disposalsCost: 0, closingGrossBlock: 0, openingAccumulatedDepreciation: 0, openingNetBlock: 0, depreciationForYear: 0, closingAccumulatedDepreciation: 0, closingNetBlock: 0 };
         companiesActCalculationResults.forEach(({asset, details}) => {
             const type = asset.assetType || 'unclassified';
-            if (!summary.byType[type]) {
-                summary.byType[type] = { ...initialTypeSummary, name: type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()), internalName: type, };
-            }
+            if (!summary.byType[type]) { summary.byType[type] = { ...initialTypeSummary, name: type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()), internalName: type }; }
             Object.keys(initialTypeSummary).forEach(key => summary.byType[type][key] += details[key] || 0);
         });
-        summary.totals = Object.values(summary.byType).reduce((acc, curr) => {
-            Object.keys(acc).forEach(key => { acc[key] += curr[key]; });
-            return acc;
-        }, { ...initialTypeSummary });
+        summary.totals = Object.values(summary.byType).reduce((acc, curr) => { Object.keys(acc).forEach(key => { acc[key] += curr[key]; }); return acc; }, { ...initialTypeSummary });
         return summary;
     }, [companiesActCalculationResults]);
 
@@ -371,15 +341,10 @@ export default function App() {
         const initialBlockSummary = { openingWDV: 0, additions: 0, saleValue: 0, wdvForDep: 0, depreciationForYear: 0, closingNetBlock: 0, shortTermCapitalGainLoss: 0 };
         incomeTaxCalculationResults.forEach(({block, details}) => {
             const type = block.blockType || 'unclassified';
-            if (!summary.byType[type]) {
-                summary.byType[type] = { ...initialBlockSummary, name: INCOME_TAX_BLOCKS[type]?.name || 'Unclassified Block', internalName: type, };
-            }
+            if (!summary.byType[type]) { summary.byType[type] = { ...initialBlockSummary, name: INCOME_TAX_BLOCKS[type]?.name || 'Unclassified Block', internalName: type, }; }
             Object.keys(initialBlockSummary).forEach(key => summary.byType[type][key] += details[key] || 0);
         });
-        summary.totals = Object.values(summary.byType).reduce((acc, curr) => {
-            Object.keys(acc).forEach(key => { acc[key] += curr[key]; });
-            return acc;
-        }, { ...initialBlockSummary });
+        summary.totals = Object.values(summary.byType).reduce((acc, curr) => { Object.keys(acc).forEach(key => { acc[key] += curr[key]; }); return acc; }, { ...initialBlockSummary });
         return summary;
     }, [incomeTaxCalculationResults]);
 
@@ -416,7 +381,7 @@ export default function App() {
 
     const allVisibleBlocksSelected = useMemo(() => {
         if (act !== 'income_tax' || filteredItems.length === 0) return false;
-        const visibleIds = new Set(filteredItems.map(r => r.id));
+        const visibleIds = new Set(filteredItems.map(b => b.id));
         return assetBlocks.filter(b => visibleIds.has(b.id)).every(b => b.isSelected);
     }, [assetBlocks, filteredItems, act]);
 
@@ -431,58 +396,6 @@ export default function App() {
         const shouldSelectAll = !allVisibleBlocksSelected;
         setAllAssetBlocks(prev => ({ ...prev, [currentFY]: (prev[currentFY] || []).map(block => visibleIds.has(block.id) ? {...block, isSelected: shouldSelectAll} : block) }));
     }, [filteredItems, allVisibleBlocksSelected, currentFY]);
-
-    // --- NEW ROLLOVER LOGIC ---
-    useEffect(() => {
-        const currentYearIndex = FINANCIAL_YEARS.indexOf(currentFY);
-        if (currentYearIndex > 0 && !allAssets[currentFY] && !allAssetBlocks[currentFY]) {
-            const prevFY = FINANCIAL_YEARS[currentYearIndex - 1];
-            const prevAssets = allAssets[prevFY] || [];
-            const prevBlocks = allAssetBlocks[prevFY] || [];
-
-            if (prevAssets.length > 0 || prevBlocks.length > 0) {
-                const { start: prevFyStart, end: prevFyEnd } = getFinancialYearDates(prevFY);
-                
-                // Rollover Companies Act Assets
-                const nextYearAssets = prevAssets.map(asset => {
-                    const prevYearDetails = calculateCompaniesActDepreciation(asset, method, prevFyStart, prevFyEnd);
-                    if (prevYearDetails.closingGrossBlock <= 0) return null;
-                    return {
-                        ...asset,
-                        additions: [],
-                        disposalDate: '',
-                        saleValue: '',
-                        isNew: false,
-                        isSelected: false,
-                        companiesAct: {
-                            openingGrossBlock: prevYearDetails.closingGrossBlock,
-                            openingAccumulatedDepreciation: prevYearDetails.closingAccumulatedDepreciation,
-                            residualValue: asset.companiesAct.residualValue
-                        }
-                    };
-                }).filter(Boolean);
-
-                // Rollover Income Tax Blocks
-                const nextYearBlocks = prevBlocks.map(block => {
-                    const prevYearDetails = calculateIncomeTaxDepreciation(block, prevFyStart, prevFyEnd);
-                    if (prevYearDetails.closingWDV <= 0) return null;
-                    return {
-                        ...block,
-                        openingWDV: prevYearDetails.closingWDV,
-                        additions: [],
-                        saleProceeds: '',
-                        blockCeased: false,
-                        isNew: false,
-                        isSelected: false,
-                    };
-                }).filter(Boolean);
-
-                setAllAssets(prev => ({ ...prev, [currentFY]: nextYearAssets }));
-                setAllAssetBlocks(prev => ({ ...prev, [currentFY]: nextYearBlocks }));
-                showToast(`Balances rolled over from ${prevFY}`, null);
-            }
-        }
-    }, [currentFY, allAssets, allAssetBlocks, method, showToast]);
 
     return (
         <div className={`${theme} transition-colors duration-500`}>
@@ -520,13 +433,13 @@ export default function App() {
                                 openingIncomeTaxWdv={incomeTaxSummary.totals.openingWDV}
                                 taxRate={deferredTaxRate}
                                 accountingProfit={accountingProfit}
-                                FY_LABEL={FY_LABEL}
+                                FY_LABEL={FY_LABEL_CURRENT}
                             />
                         ) : (
                             <PrintLayout
                                 calculationResults={act === 'companies' ? companiesActCalculationResults : incomeTaxCalculationResults}
                                 method={method}
-                                FY_LABEL={FY_LABEL}
+                                FY_LABEL={FY_LABEL_CURRENT}
                                 summaryData={act === 'companies' ? companiesActSummary : incomeTaxSummary}
                                 act={act}
                             />
@@ -552,13 +465,13 @@ export default function App() {
                                         {act === 'deferred_tax' ? 'Deferred Tax Analysis' : 'Depreciation Calculator'}
                                     </h1>
                                     <p className="text-md sm:text-lg text-slate-600 dark:text-slate-400 mt-1">
-                                        For Financial Year: {FY_LABEL}
+                                        For Financial Year: {FY_LABEL_CURRENT}
                                     </p>
                                 </div>
                                 <div className="flex justify-center items-center gap-2">
                                     <select 
                                         value={currentFY} 
-                                        onChange={(e) => setCurrentFY(e.target.value)}
+                                        onChange={(e) => handleYearChange(e.target.value)}
                                         className="px-4 py-2 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold rounded-lg shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm border border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                                     >
                                         {FINANCIAL_YEARS.map(fy => (
@@ -575,7 +488,7 @@ export default function App() {
 
                             {act !== 'deferred_tax' && (isLoading ? <SkeletonSummary /> : <SummaryReport summaryData={act === 'companies' ? companiesActSummary : incomeTaxSummary} onFilterChange={setFilterType} showToast={showToast} filterType={filterType} theme={theme} act={act} setAct={handleSelectAct} />)}
                             
-                            <div key={act} className="animate-fade-in">
+                            <div key={act + currentFY} className="animate-fade-in">
                                 {act === 'companies' ? (
                                     <CompaniesActView
                                       handleMethodChange={handleMethodChange}
