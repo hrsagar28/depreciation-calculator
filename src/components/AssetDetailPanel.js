@@ -14,7 +14,9 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, act, onClose })
     const isGrossBlockEmpty = financialData.openingGrossBlock === '' && asset.additions.length === 0;
     const isAccumDepEmpty = financialData.openingAccumulatedDepreciation === '' && financialData.openingGrossBlock !== '';
     
-    // Updated validation flags
+    // THIS IS THE LINE THAT WAS MISSING
+    const isResidualValueEmptyForSLM = method === 'SLM' && financialData.residualValue === '';
+
     const isPurchaseDateInvalid = asset.purchaseDate && !isValidDate(asset.purchaseDate);
     const isAdditionDateInvalid = newAddition.date && !isValidDate(newAddition.date);
     const isDisposalDateInvalid = (asset.disposalDate && !isValidDate(asset.disposalDate)) || (asset.disposalDate && asset.purchaseDate && new Date(asset.disposalDate) < new Date(asset.purchaseDate));
