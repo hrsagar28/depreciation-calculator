@@ -1,7 +1,7 @@
 import { round, getDaysUsed, formatCurrency } from './helpers';
-import { SCHEDULE_II_WDV_RATES, SCHEDULE_II_SLM_USEFUL_LIFE, EXCLUDED_BLOCK_TYPES_FOR_ADDITIONAL_DEP, INCOME_TAX_BLOCKS } from '../config';
+import { SCHEDULE_II_WDV_RATES, SCHEDULE_II_SLM_USEFUL_LIFE } from '../config';
 
-export const calculateCompaniesActDepreciation = (asset, method) => {
+export const calculateCompaniesActDepreciation = (asset, method, fyStartDate, fyEndDate) => {
     const financialData = asset.companiesAct;
     const openingGrossBlock = Math.max(0, parseFloat(financialData.openingGrossBlock) || 0);
     const openingAccumulatedDepreciation = Math.max(0, parseFloat(financialData.openingAccumulatedDepreciation) || 0);
@@ -30,7 +30,7 @@ export const calculateCompaniesActDepreciation = (asset, method) => {
             const depreciableBase = round(openingGrossBlock - residualValue);
             const maxAllowableDepOpening = Math.max(0, round(openingWDV - residualValue));
             if (depreciableBase > 0 && maxAllowableDepOpening > 0) {
-                const { daysUsed, daysInYear } = getDaysUsed(asset.purchaseDate, asset.disposalDate);
+                const { daysUsed, daysInYear } = getDaysUsed(asset.purchaseDate, asset.disposalDate, fyStartDate, fyEndDate);
                 const annualDep = round(depreciableBase / usefulLife);
                 const depOnOpening = round(Math.min(annualDep * (daysUsed / daysInYear), maxAllowableDepOpening));
                 depreciationForYear += depOnOpening;
@@ -40,7 +40,7 @@ export const calculateCompaniesActDepreciation = (asset, method) => {
     } else { // WDV
         calculatedRate = SCHEDULE_II_WDV_RATES[asset.assetType] || 0;
         if (openingWDV > 0 && calculatedRate > 0) {
-            const { daysUsed, daysInYear } = getDaysUsed(asset.purchaseDate, asset.disposalDate);
+            const { daysUsed, daysInYear } = getDaysUsed(asset.purchaseDate, asset.disposalDate, fyStartDate, fyEndDate);
             const depOnOpening = round(Math.min((openingWDV * calculatedRate) * (daysUsed / daysInYear), openingWDV));
             depreciationForYear += depOnOpening;
             workings.push({ description: `Dep on Opening WDV`, calculation: `(${formatCurrency(openingWDV)} × ${(calculatedRate * 100).toFixed(2)}%) × ${daysUsed}/${daysInYear} days`, amount: depOnOpening });
@@ -50,7 +50,7 @@ export const calculateCompaniesActDepreciation = (asset, method) => {
     additionsBeforeDisposal.forEach((addition, index) => {
         const addCost = Math.max(0, parseFloat(addition.cost) || 0);
         if (addCost <= 0 || !addition.date) return;
-        const { daysUsed, daysInYear: daysInAddYear } = getDaysUsed(addition.date, asset.disposalDate);
+        const { daysUsed, daysInYear: daysInAddYear } = getDaysUsed(addition.date, asset.disposalDate, fyStartDate, fyEndDate);
         let proRataDep = 0;
         if (method === 'SLM' && usefulLife > 0) {
             const addResidualValue = Math.max(0, parseFloat(addition.residualValue) || 0);
@@ -87,18 +87,19 @@ export const calculateCompaniesActDepreciation = (asset, method) => {
     return { depreciationForYear, closingWDV: finalClosingWDV, workings, profitOrLoss, openingGrossBlock, grossBlockAdditions, disposalsCost, closingGrossBlock: finalClosingGrossBlock, openingAccumulatedDepreciation, closingAccumulatedDepreciation: finalClosingAccumDep, openingWDV, saleValue };
 };
 
-export const calculateIncomeTaxDepreciation = (block) => {
+export const calculateIncomeTaxDepreciation = (block, fyStartDate, fyEndDate) => {
     const openingWDV = Math.max(0, parseFloat(block.openingWDV) || 0);
     const blockCeased = block.blockCeased || false;
     const eligibleForAdditional = block.eligibleForAdditional || false;
     const rate = block.rate || 0;
+
     let additionsFullRate = 0;
     let additionsHalfRate = 0;
 
     block.additions.forEach(add => {
         const cost = Math.max(0, parseFloat(add.cost) || 0);
         if(cost > 0 && add.date) {
-            const { daysUsed } = getDaysUsed(add.date, null);
+            const { daysUsed } = getDaysUsed(add.date, null, fyStartDate, fyEndDate);
             if (daysUsed >= 180) {
                 additionsFullRate += cost;
             } else {
@@ -112,6 +113,7 @@ export const calculateIncomeTaxDepreciation = (block) => {
 
     const hasValueAtStart = openingWDV > 0 || totalAdditions > 0;
     const saleProceeds = hasValueAtStart ? Math.max(0, parseFloat(block.saleProceeds) || 0) : 0;
+
     const wdvBeforeDep = round(openingWDV + totalAdditions - saleProceeds);
 
     let depreciationForYear = 0;
@@ -123,6 +125,7 @@ export const calculateIncomeTaxDepreciation = (block) => {
     if (!block.blockType) {
         return { openingWDV, additions: totalAdditions, saleValue: saleProceeds, wdvForDep: wdvBeforeDep, depreciationForYear: 0, closingWDV: wdvBeforeDep, shortTermCapitalGainLoss: 0, workings: [{description: "Select a block type to calculate depreciation.", calculation: "", amount: 0}] };
     }
+
 
     if (blockCeased) {
         shortTermCapitalGainLoss = round(saleProceeds - (openingWDV + totalAdditions));
@@ -139,23 +142,25 @@ export const calculateIncomeTaxDepreciation = (block) => {
         const depOnOpening = round(Math.max(0, wdvForOpeningDep * rate));
 
         depreciationForYear = round(depOnOpening + depOnAdditionsFull + depOnAdditionsHalf);
+
         if (depOnOpening > 0) workings.push({ description: 'Dep on Opening WDV balance', calculation: `${formatCurrency(wdvForOpeningDep)} × ${rate * 100}%`, amount: depOnOpening });
         if (depOnAdditionsFull > 0) workings.push({ description: 'Dep on Additions (>= 180 days)', calculation: `${formatCurrency(additionsFullRate)} × ${rate * 100}%`, amount: depOnAdditionsFull });
         if (depOnAdditionsHalf > 0) workings.push({ description: 'Dep on Additions (< 180 days)', calculation: `${formatCurrency(additionsHalfRate)} × ${(rate / 2) * 100}%`, amount: depOnAdditionsHalf });
 
+        // Additional Depreciation Calculation
         if (eligibleForAdditional) {
             const addDepOnFull = round(additionsFullRate * 0.20);
             const addDepOnHalf = round(additionsHalfRate * 0.10);
             additionalDepreciation = round(addDepOnFull + addDepOnHalf);
             if(additionalDepreciation > 0) {
                  workings.push({ description: 'Additional Depreciation', calculation: `On new additions`, amount: additionalDepreciation });
-                depreciationForYear = round(depreciationForYear + additionalDepreciation);
+                 depreciationForYear = round(depreciationForYear + additionalDepreciation);
             }
         }
 
         closingWDV = round(wdvBeforeDep - depreciationForYear);
     } else {
-        shortTermCapitalGainLoss = round(wdvBeforeDep);
+        shortTermCapitalGainLoss = round(wdvBeforeDep); // This will be negative, indicating a capital gain
         closingWDV = 0;
         workings.push({
             description: 'Short Term Capital Gain (Sale > WDV)',

@@ -1,13 +1,31 @@
-// --- Config & Data ---
-export const FINANCIAL_YEAR_CONFIG = {
-  start: '2024-04-01',
-  end: '2025-03-31',
-  label: '2024-25',
+// --- Financial Year Configuration ---
+
+// List of all supported financial years
+export const FINANCIAL_YEARS = [
+    "2021-22", "2022-23", "2023-24", "2024-25", "2025-26", 
+    "2026-27", "2027-28", "2028-29", "2029-30"
+];
+
+// Function to get the start and end dates for a given financial year label
+export const getFinancialYearDates = (fyLabel) => {
+    if (!fyLabel || !/^\d{4}-\d{2}$/.test(fyLabel)) {
+        fyLabel = "2024-25"; // Default fallback
+    }
+    const startYear = parseInt(fyLabel.substring(0, 4), 10);
+    const endYear = startYear + 1;
+    return {
+        start: `${startYear}-04-01`,
+        end: `${endYear}-03-31`,
+        label: fyLabel,
+    };
 };
 
-export const { start: FY_START_DATE, end: FY_END_DATE, label: FY_LABEL } = FINANCIAL_YEAR_CONFIG;
+// We get the default FY details for initial load
+const defaultFY = getFinancialYearDates("2024-25");
+export const { start: FY_START_DATE, end: FY_END_DATE, label: FY_LABEL } = defaultFY;
 
-// Companies Act Data
+
+// --- Companies Act Data ---
 export const SCHEDULE_II_WDV_RATES = {
   general_machinery: 0.1810, computers_laptops: 0.6316, servers_networks: 0.3930,
   general_furniture: 0.2589, office_equipment: 0.4507, motor_cars: 0.2589,
@@ -20,7 +38,7 @@ export const SCHEDULE_II_SLM_USEFUL_LIFE = {
   buildings_rcc: 60, buildings_non_rcc: 30,
 };
 
-// Income Tax Act Data (Updated)
+// --- Income Tax Act Data ---
 export const INCOME_TAX_BLOCKS = {
   'building_residential': { name: 'Building (Residential)', rate: 0.05 },
   'building_general': { name: 'Building (Office, Factory, etc.)', rate: 0.10 },
@@ -40,7 +58,6 @@ export const INCOME_TAX_BLOCKS = {
   'books_annual': { name: 'Books (Annual Publications)', rate: 1.00 },
 };
 
-// List of block types statutorily excluded from additional depreciation
 export const EXCLUDED_BLOCK_TYPES_FOR_ADDITIONAL_DEP = [
     'ships_vessels',
     'motor_cars',
