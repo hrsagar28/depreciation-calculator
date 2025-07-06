@@ -1,11 +1,12 @@
 import React from 'react';
 import { FY_LABEL } from '../config';
 
-const ActSelectionScreen = ({ onSelectCalculationMode, theme, toggleTheme, openHelpModal, handleExport, handleImport }) => {
+const ActSelectionScreen = ({ onSelectCalculationMode, theme, toggleTheme, openHelpModal }) => {
     return (
         <div className={theme}>
             <div className="bg-gradient-to-br from-slate-50 to-slate-200 dark:from-slate-900 dark:to-slate-950 min-h-screen text-slate-800 font-sans flex flex-col justify-center items-center p-4">
                  
+                 {/* --- UPDATED RESPONSIVE HEADER --- */}
                  <div className="absolute top-4 right-4 flex items-center gap-2">
                     <button onClick={() => openHelpModal('introduction')} className="px-3 py-2 md:px-4 bg-blue-600 text-white font-semibold rounded-lg shadow-sm hover:bg-blue-700 transition-colors text-xs md:text-sm">Help</button>
                     <button onClick={toggleTheme} className="px-3 py-2 md:px-4 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold rounded-lg shadow-sm hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors text-xs md:text-sm">
@@ -51,21 +52,6 @@ const ActSelectionScreen = ({ onSelectCalculationMode, theme, toggleTheme, openH
                         </button>
                     </div>
                 </div>
-
-                {/* --- NEW SECTION FOR IMPORT/EXPORT --- */}
-                <div className="w-full max-w-5xl mt-8 text-center animate-fade-in-up" style={{ animationDelay: '800ms' }}>
-                    <div className="p-4 bg-slate-200/50 dark:bg-slate-800/50 rounded-xl inline-flex gap-4">
-                        <button onClick={handleImport} className="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-sm hover:bg-green-700 transition-colors text-sm flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                            Import Data
-                        </button>
-                        <button onClick={handleExport} className="px-4 py-2 bg-orange-500 text-white font-semibold rounded-lg shadow-sm hover:bg-orange-600 transition-colors text-sm flex items-center gap-2">
-                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                            Export Data
-                        </button>
-                    </div>
-                </div>
-
             </div>
         </div>
     );
