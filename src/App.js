@@ -153,21 +153,18 @@ export default function App() {
 
     const handleYearChange = (newFY) => {
         const currentYearIndex = FINANCIAL_YEARS.indexOf(newFY);
-        const prevYearWithDataIndex = FINANCIAL_YEARS.slice(0, currentYearIndex).reverse().findIndex(fy => allAssets[fy] || allAssetBlocks[fy]);
+        const prevYearWithDataIndex = FINANCIAL_YEARS.slice(0, currentYearIndex).reverse().findIndex(fy => (allAssets[fy] && allAssets[fy].length > 0) || (allAssetBlocks[fy] && allAssetBlocks[fy].length > 0));
         
-        // Check if data for the new year already exists. If so, just switch to it.
         if (allAssets[newFY] || allAssetBlocks[newFY]) {
             setCurrentFY(newFY);
             return;
         }
 
-        // If no prior year has data, just switch to the new empty year
         if (prevYearWithDataIndex === -1) {
             setCurrentFY(newFY);
             return;
         }
 
-        // --- Perform Rollover ---
         let assetsToRollover = { ...allAssets };
         let blocksToRollover = { ...allAssetBlocks };
 
@@ -182,7 +179,6 @@ export default function App() {
             const currentAssets = assetsToRollover[stepFY] || [];
             const currentBlocks = blocksToRollover[stepFY] || [];
 
-            // Rollover Companies Act Assets
             const nextYearAssets = currentAssets.map(asset => {
                 const prevYearDetails = calculateCompaniesActDepreciation(asset, method, stepFyStart, stepFyEnd);
                 if (prevYearDetails.closingGrossBlock <= 0 && prevYearDetails.disposalsCost > 0) return null;
@@ -196,7 +192,6 @@ export default function App() {
                 };
             }).filter(Boolean);
 
-            // Rollover Income Tax Blocks
             const nextYearBlocks = currentBlocks.map(block => {
                 const prevYearDetails = calculateIncomeTaxDepreciation(block, stepFyStart, stepFyEnd);
                 if (prevYearDetails.closingWDV <= 0 && block.blockCeased) return null;
@@ -260,25 +255,25 @@ export default function App() {
     }, [currentFY]);
 
     const handleConfirmAssetDelete = useCallback(() => {
-      const originalAssets = [...(allAssets[currentFY] || [])];
-      const assetsToDelete = originalAssets.filter(a => a.isSelected);
-      const newAssets = originalAssets.filter(asset => !asset.isSelected);
-      setAllAssets(prev => ({...prev, [currentFY]: newAssets}));
-      setIsAssetDeleteModalOpen(false);
-      setSelectedAssetId(null);
-      const undo = () => { setAllAssets(prev => ({...prev, [currentFY]: originalAssets})); hideToast(); showToast("Deletion undone."); };
-      showToast(`${assetsToDelete.length} asset(s) deleted.`, undo);
+        const originalAssets = [...(allAssets[currentFY] || [])];
+        const assetsToDelete = originalAssets.filter(a => a.isSelected);
+        const newAssets = originalAssets.filter(asset => !asset.isSelected);
+        setAllAssets(prev => ({...prev, [currentFY]: newAssets}));
+        setIsAssetDeleteModalOpen(false);
+        setSelectedAssetId(null);
+        const undo = () => { setAllAssets(prev => ({...prev, [currentFY]: originalAssets})); hideToast(); showToast("Deletion undone."); };
+        showToast(`${assetsToDelete.length} asset(s) deleted.`, undo);
     }, [allAssets, currentFY, showToast, hideToast]);
 
     const handleConfirmBlockDelete = useCallback(() => {
-      const originalBlocks = [...(allAssetBlocks[currentFY] || [])];
-      const blocksToDelete = originalBlocks.filter(b => b.isSelected);
-      const newBlocks = originalBlocks.filter(block => !block.isSelected);
-      setAllAssetBlocks(prev => ({...prev, [currentFY]: newBlocks}));
-      setIsBlockDeleteModalOpen(false);
-      setSelectedBlockId(null);
-      const undo = () => { setAllAssetBlocks(prev => ({...prev, [currentFY]: originalBlocks})); hideToast(); showToast("Deletion undone."); };
-      showToast(`${blocksToDelete.length} block(s) deleted.`, undo);
+        const originalBlocks = [...(allAssetBlocks[currentFY] || [])];
+        const blocksToDelete = originalBlocks.filter(b => b.isSelected);
+        const newBlocks = originalBlocks.filter(block => !block.isSelected);
+        setAllAssetBlocks(prev => ({...prev, [currentFY]: newBlocks}));
+        setIsBlockDeleteModalOpen(false);
+        setSelectedBlockId(null);
+        const undo = () => { setAllAssetBlocks(prev => ({...prev, [currentFY]: originalBlocks})); hideToast(); showToast("Deletion undone."); };
+        showToast(`${blocksToDelete.length} block(s) deleted.`, undo);
     }, [allAssetBlocks, currentFY, showToast, hideToast]);
 
     const handleMethodChange = (newMethod) => {
