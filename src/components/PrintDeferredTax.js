@@ -30,11 +30,14 @@ const PrintDeferredTax = ({
     const closingDeferredTax = openingDeferredTax + movementDeferredTax;
     const isClosingAsset = closingDeferredTax >= 0;
     const resultType = isClosingAsset ? 'Asset' : 'Liability';
+    
     const journalEntry = {
         debit: movementDeferredTax >= 0 ? 'Deferred Tax Asset (B/S)' : 'Deferred Tax Expense (P&L)',
         credit: movementDeferredTax >= 0 ? 'Deferred Tax Expense (P&L)' : 'Deferred Tax Liability (B/S)',
         amount: Math.abs(movementDeferredTax),
+        narration: `Being the movement in deferred tax for the year recognized on timing differences in depreciation.`
     };
+
     const taxableProfit = parsedAccountingProfit - movementTimingDifference;
     const currentTax = taxableProfit * (taxRate / 100);
     const totalTaxExpense = currentTax + movementDeferredTax;
@@ -87,13 +90,32 @@ const PrintDeferredTax = ({
                         </tr>
                     </tbody>
                 </table>
+                {/* THIS IS THE CORRECTED NARRATION */}
+                <p style={{marginTop: '1rem', fontSize: '9pt', fontStyle: 'italic'}}>({journalEntry.narration})</p>
             </PrintInfoCard>
 
             <PrintInfoCard title="Notes to Accounts & Disclosures">
                  <h4 style={{fontWeight: 'bold', fontSize: '11pt', marginBottom: '0.5rem'}}>A. Deferred Tax {resultType} (Balance Sheet Note)</h4>
-                 <p style={{marginBottom: '1rem'}}>The closing balance is presented under <strong>{isClosingAsset ? 'Non-Current Assets' : 'Non-Current Liabilities'}</strong>.</p>
+                 <p style={{marginBottom: '1rem'}}>The closing balance is presented under <strong>{isClosingAsset ? 'Non-Current Assets' : 'Non-Current Liabilities'}</strong>. The movement is reconciled as follows:</p>
+                 {/* THIS IS THE CORRECTED RECONCILIATION TABLE */}
+                 <table className="print-summary-table" style={{maxWidth: '400px'}}>
+                    <tbody>
+                        <tr>
+                            <td>Opening Balance</td>
+                            <td align="right">{formatCurrency(openingDeferredTax)}</td>
+                        </tr>
+                        <tr>
+                            <td>Charge/(Credit) to P&L for the year</td>
+                            <td align="right">{formatCurrency(movementDeferredTax)}</td>
+                        </tr>
+                        <tr style={{fontWeight: 'bold', borderTop: '2px solid #ccc'}}>
+                            <td>Closing Balance</td>
+                            <td align="right">{formatCurrency(closingDeferredTax)}</td>
+                        </tr>
+                    </tbody>
+                 </table>
                  
-                 <h4 style={{fontWeight: 'bold', fontSize: '11pt', marginBottom: '0.5rem'}}>B. Tax Expense (Profit & Loss Note)</h4>
+                 <h4 style={{fontWeight: 'bold', fontSize: '11pt', marginBottom: '0.5rem', marginTop: '1.5rem'}}>B. Tax Expense (Profit & Loss Note)</h4>
                  <table className="print-summary-table">
                     <tbody>
                         <tr>
