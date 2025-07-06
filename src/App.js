@@ -4,7 +4,7 @@ import Tooltip from './components/Tooltip';
 import { useDebounce } from './utils/helpers';
 import AssetCard from './components/AssetCard';
 import BlockCard from './components/BlockCard';
-import { FY_LABEL, INCOME_TAX_BLOCKS, FINANCIAL_YEARS, getFinancialYearDates } from './config';
+import { FINANCIAL_YEARS, getFinancialYearDates, INCOME_TAX_BLOCKS } from './config';
 import AssetDetailPanel from './components/AssetDetailPanel';
 import ConfirmationModal from './components/ConfirmationModal';
 import BlockDetailPanel from './components/BlockDetailPanel';
@@ -148,54 +148,71 @@ export default function App() {
             });
         }
     }, [allAssets, allAssetBlocks, debouncedMethod, debouncedTheme, debouncedAct, debouncedDeferredTaxRate, debouncedAccountingProfit, debouncedCurrentFY, isLoading, saveState]);
-
-    const { start: fyStartDate, end: fyEndDate, label: FY_LABEL_CURRENT } = getFinancialYearDates(currentFY);
     
+    const { start: fyStartDate, end: fyEndDate, label: FY_LABEL_CURRENT } = getFinancialYearDates(currentFY);
+
     const handleYearChange = (newFY) => {
         const currentYearIndex = FINANCIAL_YEARS.indexOf(newFY);
-        const prevYearIndex = FINANCIAL_YEARS.indexOf(currentFY);
+        const prevYearWithDataIndex = FINANCIAL_YEARS.slice(0, currentYearIndex).reverse().findIndex(fy => allAssets[fy] || allAssetBlocks[fy]);
         
-        if (currentYearIndex > prevYearIndex) {
-            let assetsToRollover = allAssets;
-            let blocksToRollover = allAssetBlocks;
-            
-            for (let i = prevYearIndex; i < currentYearIndex; i++) {
-                const stepFY = FINANCIAL_YEARS[i];
-                const nextStepFY = FINANCIAL_YEARS[i + 1];
-                const { start: stepFyStart, end: stepFyEnd } = getFinancialYearDates(stepFY);
-                
-                const currentAssets = assetsToRollover[stepFY] || [];
-                const currentBlocks = blocksToRollover[stepFY] || [];
-
-                const nextYearAssets = currentAssets.map(asset => {
-                    const prevYearDetails = calculateCompaniesActDepreciation(asset, method, stepFyStart, stepFyEnd);
-                    if (prevYearDetails.closingGrossBlock <= 0 && prevYearDetails.disposalsCost > 0) return null;
-                    return {
-                        ...asset, additions: [], disposalDate: '', saleValue: '', isNew: false, isSelected: false,
-                        companiesAct: {
-                            openingGrossBlock: prevYearDetails.closingGrossBlock,
-                            openingAccumulatedDepreciation: prevYearDetails.closingAccumulatedDepreciation,
-                            residualValue: asset.companiesAct.residualValue
-                        }
-                    };
-                }).filter(Boolean);
-
-                const nextYearBlocks = currentBlocks.map(block => {
-                    const prevYearDetails = calculateIncomeTaxDepreciation(block, stepFyStart, stepFyEnd);
-                    if (prevYearDetails.closingWDV <= 0 && block.blockCeased) return null;
-                     return {
-                        ...block, openingWDV: prevYearDetails.closingWDV,
-                        additions: [], saleProceeds: '', blockCeased: false, isNew: false, isSelected: false,
-                    };
-                }).filter(Boolean);
-
-                assetsToRollover = { ...assetsToRollover, [nextStepFY]: nextYearAssets };
-                blocksToRollover = { ...blocksToRollover, [nextStepFY]: nextYearBlocks };
-            }
-            setAllAssets(assetsToRollover);
-            setAllAssetBlocks(blocksToRollover);
+        // Check if data for the new year already exists. If so, just switch to it.
+        if (allAssets[newFY] || allAssetBlocks[newFY]) {
+            setCurrentFY(newFY);
+            return;
         }
+
+        // If no prior year has data, just switch to the new empty year
+        if (prevYearWithDataIndex === -1) {
+            setCurrentFY(newFY);
+            return;
+        }
+
+        // --- Perform Rollover ---
+        let assetsToRollover = { ...allAssets };
+        let blocksToRollover = { ...allAssetBlocks };
+
+        const lastYearWithData = FINANCIAL_YEARS.slice(0, currentYearIndex).reverse()[prevYearWithDataIndex];
+        const lastYearWithDataIndex = FINANCIAL_YEARS.indexOf(lastYearWithData);
+
+        for (let i = lastYearWithDataIndex; i < currentYearIndex; i++) {
+            const stepFY = FINANCIAL_YEARS[i];
+            const nextStepFY = FINANCIAL_YEARS[i + 1];
+            const { start: stepFyStart, end: stepFyEnd } = getFinancialYearDates(stepFY);
+            
+            const currentAssets = assetsToRollover[stepFY] || [];
+            const currentBlocks = blocksToRollover[stepFY] || [];
+
+            // Rollover Companies Act Assets
+            const nextYearAssets = currentAssets.map(asset => {
+                const prevYearDetails = calculateCompaniesActDepreciation(asset, method, stepFyStart, stepFyEnd);
+                if (prevYearDetails.closingGrossBlock <= 0 && prevYearDetails.disposalsCost > 0) return null;
+                return {
+                    ...asset, additions: [], disposalDate: '', saleValue: '', isNew: false, isSelected: false,
+                    companiesAct: {
+                        openingGrossBlock: prevYearDetails.closingGrossBlock,
+                        openingAccumulatedDepreciation: prevYearDetails.closingAccumulatedDepreciation,
+                        residualValue: asset.companiesAct.residualValue
+                    }
+                };
+            }).filter(Boolean);
+
+            // Rollover Income Tax Blocks
+            const nextYearBlocks = currentBlocks.map(block => {
+                const prevYearDetails = calculateIncomeTaxDepreciation(block, stepFyStart, stepFyEnd);
+                if (prevYearDetails.closingWDV <= 0 && block.blockCeased) return null;
+                 return {
+                    ...block, openingWDV: prevYearDetails.closingWDV,
+                    additions: [], saleProceeds: '', blockCeased: false, isNew: false, isSelected: false,
+                };
+            }).filter(Boolean);
+
+            assetsToRollover[nextStepFY] = nextYearAssets;
+            blocksToRollover[nextStepFY] = nextYearBlocks;
+        }
+        setAllAssets(assetsToRollover);
+        setAllAssetBlocks(blocksToRollover);
         setCurrentFY(newFY);
+        showToast(`Balances rolled over to ${newFY}`, null);
     };
 
     const toggleTheme = () => {
@@ -243,25 +260,25 @@ export default function App() {
     }, [currentFY]);
 
     const handleConfirmAssetDelete = useCallback(() => {
-        const originalAssets = [...(allAssets[currentFY] || [])];
-        const assetsToDelete = originalAssets.filter(a => a.isSelected);
-        const newAssets = originalAssets.filter(asset => !asset.isSelected);
-        setAllAssets(prev => ({...prev, [currentFY]: newAssets}));
-        setIsAssetDeleteModalOpen(false);
-        setSelectedAssetId(null);
-        const undo = () => { setAllAssets(prev => ({...prev, [currentFY]: originalAssets})); hideToast(); showToast("Deletion undone."); };
-        showToast(`${assetsToDelete.length} asset(s) deleted.`, undo);
+      const originalAssets = [...(allAssets[currentFY] || [])];
+      const assetsToDelete = originalAssets.filter(a => a.isSelected);
+      const newAssets = originalAssets.filter(asset => !asset.isSelected);
+      setAllAssets(prev => ({...prev, [currentFY]: newAssets}));
+      setIsAssetDeleteModalOpen(false);
+      setSelectedAssetId(null);
+      const undo = () => { setAllAssets(prev => ({...prev, [currentFY]: originalAssets})); hideToast(); showToast("Deletion undone."); };
+      showToast(`${assetsToDelete.length} asset(s) deleted.`, undo);
     }, [allAssets, currentFY, showToast, hideToast]);
 
     const handleConfirmBlockDelete = useCallback(() => {
-        const originalBlocks = [...(allAssetBlocks[currentFY] || [])];
-        const blocksToDelete = originalBlocks.filter(b => b.isSelected);
-        const newBlocks = originalBlocks.filter(block => !block.isSelected);
-        setAllAssetBlocks(prev => ({...prev, [currentFY]: newBlocks}));
-        setIsBlockDeleteModalOpen(false);
-        setSelectedBlockId(null);
-        const undo = () => { setAllAssetBlocks(prev => ({...prev, [currentFY]: originalBlocks})); hideToast(); showToast("Deletion undone."); };
-        showToast(`${blocksToDelete.length} block(s) deleted.`, undo);
+      const originalBlocks = [...(allAssetBlocks[currentFY] || [])];
+      const blocksToDelete = originalBlocks.filter(b => b.isSelected);
+      const newBlocks = originalBlocks.filter(block => !block.isSelected);
+      setAllAssetBlocks(prev => ({...prev, [currentFY]: newBlocks}));
+      setIsBlockDeleteModalOpen(false);
+      setSelectedBlockId(null);
+      const undo = () => { setAllAssetBlocks(prev => ({...prev, [currentFY]: originalBlocks})); hideToast(); showToast("Deletion undone."); };
+      showToast(`${blocksToDelete.length} block(s) deleted.`, undo);
     }, [allAssetBlocks, currentFY, showToast, hideToast]);
 
     const handleMethodChange = (newMethod) => {
