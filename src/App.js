@@ -196,7 +196,7 @@ export default function App() {
         const newBlock = {
             id: newId,
             blockType: '',
-            name: 'New Block',
+            name: '',
             rate: 0,
             openingWDV: '',
             additions: [],
