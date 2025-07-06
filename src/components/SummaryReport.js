@@ -8,8 +8,8 @@ const SummaryReport = ({ summaryData, onFilterChange, showToast, filterType, the
     const [isShowing, setIsShowing] = useState(false);
 
     useEffect(() => {
-        // This effect triggers the animation when the component mounts
-        const timer = setTimeout(() => setIsShowing(true), 100); // A small delay ensures a smooth start
+        // Trigger animation on mount
+        const timer = setTimeout(() => setIsShowing(true), 100);
         return () => clearTimeout(timer);
     }, []);
 
@@ -79,6 +79,9 @@ const SummaryReport = ({ summaryData, onFilterChange, showToast, filterType, the
         itemStyle: { color: legendColor },
         labelStyle: { color: legendColor }
     };
+    
+    // THIS IS THE FIX: The label color is now dynamic based on the theme.
+    const pieLabelColor = theme === 'dark' ? '#fff' : '#1e293b'; // White for dark, dark-slate for light
 
     return (
       <div className={`bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg border border-white/30 dark:border-slate-700/50 rounded-2xl shadow-lg overflow-hidden mb-8 transition-all duration-700 ease-in-out transform ${isShowing ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
@@ -211,7 +214,7 @@ const SummaryReport = ({ summaryData, onFilterChange, showToast, filterType, the
                                       outerRadius={90}
                                       labelLine={false}
                                       onClick={handlePieClick}
-                                      label={({ name, percent, x, y, fill }) => percent > 0.05 ? <text x={x} y={y} fill={"#fff"} textAnchor="middle" dominantBaseline="central" className="text-xs font-bold">{`${(percent * 100).toFixed(0)}%`}</text> : null }
+                                      label={({ name, percent, x, y, fill }) => percent > 0.05 ? <text x={x} y={y} fill={pieLabelColor} textAnchor="middle" dominantBaseline="central" className="text-xs font-bold">{`${(percent * 100).toFixed(0)}%`}</text> : null }
                                     >
                                        {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} stroke={filterType === entry.internalName ? '#fff' : entry.fill} strokeWidth={filterType === entry.internalName ? 3 : 1} className="cursor-pointer" />)}
                                     </Pie>
