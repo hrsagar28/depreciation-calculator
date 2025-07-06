@@ -197,7 +197,8 @@ export default function App() {
     }, []);
 
     const updateBlock = useCallback((id, updatedData) => {
-        setAssetBlocks(prev => prev.map(block => (block.id === id ? updatedData : asset)));
+        // THIS IS THE CORRECTED LINE
+        setAssetBlocks(prev => prev.map(block => (block.id === id ? updatedData : block)));
     }, []);
 
     const handleSelectAsset = useCallback((id, isSelected) => {
@@ -446,32 +447,30 @@ export default function App() {
             ) : (
                 <>
                     <PrintStyles />
-
-<style>{`
-    @keyframes fade-in {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
-    .animate-fade-in {
-        animation: fade-in 0.5s ease-in-out;
-    }
-    /* --- NEW ANIMATION --- */
-    @keyframes fade-in-slide-up {
-        from { 
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to { 
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-    .animate-new-item {
-        animation: fade-in-slide-up 0.5s ease-out;
-    }
-`}</style>
-                   
- 
+                    <style>{`
+                        @keyframes fade-in {
+                            from { opacity: 0; }
+                            to { opacity: 1; }
+                        }
+                        .animate-fade-in {
+                            animation: fade-in 0.5s ease-in-out;
+                        }
+                        /* --- NEW ANIMATION --- */
+                        @keyframes fade-in-slide-up {
+                            from { 
+                                opacity: 0;
+                                transform: translateY(20px);
+                            }
+                            to { 
+                                opacity: 1;
+                                transform: translateY(0);
+                            }
+                        }
+                        .animate-new-item {
+                            animation: fade-in-slide-up 0.5s ease-out;
+                        }
+                    `}</style>
+                    
                     <div className="print-only">
                         <PrintLayout
                             calculationResults={act === 'companies' ? companiesActCalculationResults : incomeTaxCalculationResults}
@@ -520,7 +519,6 @@ export default function App() {
 
                             {act !== 'deferred_tax' && (isLoading ? <SkeletonSummary /> : <SummaryReport summaryData={act === 'companies' ? companiesActSummary : incomeTaxSummary} onFilterChange={setFilterType} showToast={showToast} filterType={filterType} theme={theme} act={act} setAct={handleSelectAct} />)}
                             
-                            {/* --- THIS IS THE WRAPPER DIV FOR THE PAGE CONTENT ANIMATION --- */}
                             <div key={act} className="animate-fade-in">
                                 {act === 'companies' ? (
                                     <CompaniesActView
