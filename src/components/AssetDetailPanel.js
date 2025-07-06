@@ -18,7 +18,11 @@ const AssetDetailPanel = ({ asset, details, updateAsset, method, act, onClose })
 
     // More robust validation checks
     const isPurchaseDateInvalid = asset.purchaseDate && !isValidDate(asset.purchaseDate);
-    const isAdditionDateInvalid = newAddition.date && !isValidDate(newAddition.date);
+    const isAdditionDateInvalid = newAddition.date && (
+    !isValidDate(newAddition.date) ||
+    new Date(newAddition.date) < new Date(FY_START_DATE) ||
+    new Date(newAddition.date) > new Date(FY_END_DATE)
+);
     const isDisposalDateInvalid = (asset.disposalDate && !isValidDate(asset.disposalDate)) || (asset.disposalDate && asset.purchaseDate && isValidDate(asset.purchaseDate) && new Date(asset.disposalDate) < new Date(asset.purchaseDate));
 
     const canHaveSaleValue = (parseFloat(financialData.openingGrossBlock) || 0) > 0 || asset.additions.length > 0;
